@@ -22,7 +22,7 @@ public class Matcher {
                 if (trade.buyerHasEnoughCredit())
                     trade.decreaseBuyersCredit();
                 else {
-                    rollbackTrades(newOrder, trades);
+                    rollbackTradesForBuyOrders(newOrder, trades);
                     return MatchResult.notEnoughCredit();
                 }
             }
@@ -46,7 +46,7 @@ public class Matcher {
         return MatchResult.executed(newOrder, trades);
     }
 
-    private void rollbackTrades(Order newOrder, LinkedList<Trade> trades) {
+    private void rollbackTradesForBuyOrders(Order newOrder, LinkedList<Trade> trades) {
         assert newOrder.getSide() == Side.BUY;
         newOrder.getBroker().increaseCreditBy(trades.stream().mapToLong(Trade::getTradedValue).sum());
         trades.forEach(trade -> trade.getSell().getBroker().decreaseCreditBy(trade.getTradedValue()));
@@ -54,6 +54,17 @@ public class Matcher {
         ListIterator<Trade> it = trades.listIterator(trades.size());
         while (it.hasPrevious()) {
             newOrder.getSecurity().getOrderBook().restoreSellOrder(it.previous().getSell());
+        }
+    }
+
+    private void rollbackTradesForSellOrders(Order newOrder, LinkedList<Trade> trades) {
+        assert newOrder.getSide() == Side.SELL;
+        newOrder.getBroker().decreaseCreditBy(trades.stream().mapToLong(Trade::getTradedValue).sum());
+        trades.forEach(trade -> trade.getBuy().getBroker().increaseCreditBy(trade.getTradedValue()));
+
+        ListIterator<Trade> it = trades.listIterator(trades.size());
+        while (it.hasPrevious()) {
+            newOrder.getSecurity().getOrderBook().restoreBuyOrder(it.previous().getBuy());
         }
     }
 
@@ -65,7 +76,7 @@ public class Matcher {
         if (result.remainder().getQuantity() > 0) {
             if (order.getSide() == Side.BUY) {
                 if (!order.getBroker().hasEnoughCredit(order.getValue())) {
-                    rollbackTrades(order, result.trades());
+                    rollbackTradesForBuyOrders(order, result.trades());
                     return MatchResult.notEnoughCredit();
                 }
                 order.getBroker().decreaseCreditBy(order.getValue());
@@ -85,8 +96,12 @@ public class Matcher {
         int originalOrderQuantity = order.getTotalQuantity();
         MatchResult result = execute(order);
         if (result.remainder() != null && originalOrderQuantity - result.remainder().getTotalQuantity() < minimumExecutionQuantity) {
-            rollbackTrades(order, result.trades());
-            rollbackRemainder(order, result.remainder());
+            if (order.getSide() == Side.BUY) {
+                rollbackTradesForBuyOrders(order, result.trades());
+                rollbackRemainder(order, result.remainder());
+            } else if (order.getSide() == Side.SELL) {
+                rollbackTradesForSellOrders(order, result.trades());
+            }
             return MatchResult.minimumQuantityConditionFailed();
         }
         return result;

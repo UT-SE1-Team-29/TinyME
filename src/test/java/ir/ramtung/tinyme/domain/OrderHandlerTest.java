@@ -584,7 +584,7 @@ public class OrderHandlerTest {
     }
 
     @Test
-    void minimum_quantity_condition_met_for_a_new_order() {
+    void minimum_quantity_condition_met_for_a_new_buy_order() {
         broker1.increaseCreditBy(100_000_000L);
         long originalCredit = broker1.getCredit();
         List<Order> orders = List.of(
@@ -598,7 +598,7 @@ public class OrderHandlerTest {
     }
 
     @Test
-    void minimum_quantity_condition_not_met_for_a_new_order() {
+    void minimum_quantity_condition_not_met_for_a_new_buy_order() {
         broker1.increaseCreditBy(100_000_000L);
         long originalCredit = broker1.getCredit();
         List<Order> orders = List.of(
@@ -616,7 +616,7 @@ public class OrderHandlerTest {
     }
 
     @Test
-    void no_error_when_minimum_quantity_condition_not_met_for_an_update_order() {
+    void no_error_when_minimum_quantity_condition_not_met_for_an_updated_buy_order() {
         broker1.increaseCreditBy(100_000_000L);
         long originalCredit = broker1.getCredit();
         List<Order> orders = List.of(
@@ -633,6 +633,35 @@ public class OrderHandlerTest {
 
     }
 
-    // TODO: testing minimumExecutionQuantity for Iceberg orders
+    @Test
+    void minimum_quantity_condition_met_for_a_new_iceberg_buy_order() {
+        broker1.increaseCreditBy(100_000_000L);
+        long originalCredit = broker1.getCredit();
+        List<Order> orders = List.of(
+                new Order(1, security, Side.SELL, 304, 570, broker2, shareholder)
+        );
+        orders.forEach(order -> security.getOrderBook().enqueue(order));
+
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(1, "ABC", 2, LocalDateTime.now(), Side.BUY, 500, 590, broker1.getBrokerId(), shareholder.getShareholderId(), 55, 200));
+        verify(eventPublisher).publish(any(OrderAcceptedEvent.class));
+        assertThat(broker1.getCredit()).isEqualTo(originalCredit - 304 * 570 - 196 * 590);
+    }
+
+    @Test
+    void minimum_quantity_condition_not_met_for_a_new_sell_order() {
+        long originalCredit = broker1.getCredit();
+        List<Order> orders = List.of(
+                new Order(1, security, Side.BUY, 304, 590, broker2, shareholder),
+                new Order(2, security, Side.BUY, 1000, 550, broker2, shareholder)
+        );
+        orders.forEach(order -> security.getOrderBook().enqueue(order));
+
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(1, "ABC", 3, LocalDateTime.now(), Side.SELL, 500, 570, broker1.getBrokerId(), shareholder.getShareholderId(), 0, 400));
+
+        ArgumentCaptor<OrderRejectedEvent> argumentCaptor = ArgumentCaptor.forClass(OrderRejectedEvent.class);
+        verify(eventPublisher).publish(argumentCaptor.capture());
+        assertThat(argumentCaptor.getValue().getErrors()).containsExactly(Message.MINIMUM_EXECUTION_QUANTITY_FAILED);
+        assertThat(broker1.getCredit()).isEqualTo(originalCredit);
+    }
 
 }
