@@ -81,4 +81,14 @@ public class Matcher {
         return result;
     }
 
+    public MatchResult executeWithMinimumQuantityCondition(Order order, int minimumExecutionQuantity) {
+        int originalOrderQuantity = order.getTotalQuantity();
+        MatchResult result = execute(order);
+        if (result.remainder() != null && originalOrderQuantity - result.remainder().getTotalQuantity() < minimumExecutionQuantity) {
+            rollbackTrades(order, result.trades());
+            return MatchResult.minimumQuantityConditionFailed();
+        }
+        return result;
+    }
+
 }

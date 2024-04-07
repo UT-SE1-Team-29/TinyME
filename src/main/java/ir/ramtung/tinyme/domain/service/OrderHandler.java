@@ -56,8 +56,7 @@ public class OrderHandler {
                 eventPublisher.publish(new OrderRejectedEvent(enterOrderRq.getRequestId(), enterOrderRq.getOrderId(), List.of(Message.SELLER_HAS_NOT_ENOUGH_POSITIONS)));
                 return;
             }
-            if (enterOrderRq.getRequestType() == OrderEntryType.NEW_ORDER
-                    && enterOrderRq.getQuantity() - matchResult.remainder().getTotalQuantity() < enterOrderRq.getMinimumExecutionQuantity()) {
+            if (matchResult.outcome() == MatchingOutcome.MINIMUM_QUANTITY_CONDITION_FAILED) {
                 eventPublisher.publish(new OrderRejectedEvent(enterOrderRq.getRequestId(), enterOrderRq.getOrderId(), List.of(Message.MINIMUM_EXECUTION_QUANTITY_FAILED)));
                 return;
             }
