@@ -15,4 +15,5 @@ public class Message {
     public static final String PRICE_NOT_MULTIPLE_OF_TICK_SIZE = "Price is not a multiple of security tick size";
     public static final String SELLER_HAS_NOT_ENOUGH_POSITIONS = "Seller has not enough positions";
     public static final String INVALID_MINIMUM_EXECUTION_QUANTITY = "Minimum execution quantity is invalid";
+    public static final String MINIMUM_EXECUTION_QUANTITY_FAILED = "Minimum execution quantity condition has not been met";
 }

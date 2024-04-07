@@ -582,4 +582,50 @@ public class OrderHandlerTest {
 
     }
 
+    @Test
+    void minimum_quantity_condition_met_for_a_new_order() {
+        broker1.increaseCreditBy(100_000_000L);
+        List<Order> orders = List.of(
+                new Order(1, security, Side.SELL, 304, 570, broker2, shareholder)
+        );
+        orders.forEach(order -> security.getOrderBook().enqueue(order));
+
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(1, "ABC", 2, LocalDateTime.now(), Side.BUY, 500, 590, broker1.getBrokerId(), shareholder.getShareholderId(), 0, 200));
+        verify(eventPublisher).publish(any(OrderAcceptedEvent.class));
+    }
+
+    @Test
+    void minimum_quantity_condition_not_met_for_a_new_order() {
+        broker1.increaseCreditBy(100_000_000L);
+        List<Order> orders = List.of(
+                new Order(1, security, Side.SELL, 304, 570, broker2, shareholder),
+                new Order(2, security, Side.SELL, 1000, 610, broker2, shareholder)
+        );
+        orders.forEach(order -> security.getOrderBook().enqueue(order));
+
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(1, "ABC", 3, LocalDateTime.now(), Side.BUY, 500, 590, broker1.getBrokerId(), shareholder.getShareholderId(), 0, 400));
+
+        ArgumentCaptor<OrderRejectedEvent> argumentCaptor = ArgumentCaptor.forClass(OrderRejectedEvent.class);
+        verify(eventPublisher).publish(argumentCaptor.capture());
+
+        assertThat(argumentCaptor.getValue().getErrors()).containsExactly(Message.MINIMUM_EXECUTION_QUANTITY_FAILED);
+    }
+
+    @Test
+    void no_error_when_minimum_quantity_condition_not_met_for_an_update_order() {
+        broker1.increaseCreditBy(100_000_000L);
+        List<Order> orders = List.of(
+                new Order(1, security, Side.SELL, 304, 570, broker2, shareholder),
+                new Order(2, security, Side.SELL, 1000, 610, broker2, shareholder),
+                new Order(3, security, Side.BUY, 500, 500, broker1, shareholder)
+
+        );
+        orders.forEach(order -> security.getOrderBook().enqueue(order));
+
+        orderHandler.handleEnterOrder(EnterOrderRq.createUpdateOrderRq(1, "ABC", 3, LocalDateTime.now(), Side.BUY, 500, 590, broker1.getBrokerId(), shareholder.getShareholderId(), 0, 400));
+
+        verify(eventPublisher).publish(any(OrderUpdatedEvent.class));
+
+    }
+
 }
