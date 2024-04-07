@@ -86,9 +86,15 @@ public class Matcher {
         MatchResult result = execute(order);
         if (result.remainder() != null && originalOrderQuantity - result.remainder().getTotalQuantity() < minimumExecutionQuantity) {
             rollbackTrades(order, result.trades());
+            rollbackRemainder(order, result.remainder());
             return MatchResult.minimumQuantityConditionFailed();
         }
         return result;
+    }
+
+    private void rollbackRemainder(Order newOrder, Order remainder) {
+        assert newOrder.getSide() == Side.BUY;
+        newOrder.getBroker().increaseCreditBy((long) remainder.getQuantity() * remainder.getPrice());
     }
 
 }
