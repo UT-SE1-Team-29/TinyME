@@ -8,6 +8,7 @@ import ir.ramtung.tinyme.messaging.EventPublisher;
 import ir.ramtung.tinyme.messaging.Message;
 import ir.ramtung.tinyme.messaging.TradeDTO;
 import ir.ramtung.tinyme.messaging.event.*;
+import ir.ramtung.tinyme.messaging.exception.InvalidRequestException;
 import ir.ramtung.tinyme.messaging.request.DeleteOrderRq;
 import ir.ramtung.tinyme.messaging.request.EnterOrderRq;
 import ir.ramtung.tinyme.repository.BrokerRepository;
@@ -558,6 +559,28 @@ public class OrderHandlerTest {
         verify(eventPublisher).publish(any(OrderAcceptedEvent.class));
         assertThat(shareholder1.hasEnoughPositionsOn(security, 100_000)).isTrue();
         assertThat(shareholder.hasEnoughPositionsOn(security, 500)).isTrue();
+    }
+
+    @Test
+    void negative_minimum_execution_quantity() {
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(1, "ABC", 200, LocalDateTime.now(), Side.SELL, 300, 15450, 2, shareholder.getShareholderId(), 0, -1));
+
+        ArgumentCaptor<OrderRejectedEvent> argumentCaptor = ArgumentCaptor.forClass(OrderRejectedEvent.class);
+        verify(eventPublisher).publish(argumentCaptor.capture());
+
+        assertThat(argumentCaptor.getValue().getErrors()).containsExactly(Message.INVALID_MINIMUM_EXECUTION_QUANTITY);
+
+    }
+
+    @Test
+    void larger_minimum_execution_quantity_than_the_quantity() {
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(1, "ABC", 200, LocalDateTime.now(), Side.SELL, 300, 15450, 2, shareholder.getShareholderId(), 0, 400));
+
+        ArgumentCaptor<OrderRejectedEvent> argumentCaptor = ArgumentCaptor.forClass(OrderRejectedEvent.class);
+        verify(eventPublisher).publish(argumentCaptor.capture());
+
+        assertThat(argumentCaptor.getValue().getErrors()).containsExactly(Message.INVALID_MINIMUM_EXECUTION_QUANTITY);
+
     }
 
 }
