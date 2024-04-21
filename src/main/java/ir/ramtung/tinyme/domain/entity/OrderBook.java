@@ -9,12 +9,12 @@ import java.util.ListIterator;
 
 @Getter
 public class OrderBook {
-    private final LinkedList<Order> buyQueue;
-    private final LinkedList<Order> sellQueue;
+    private final Queue buyQueue;
+    private final Queue sellQueue;
 
     public OrderBook() {
-        buyQueue = new LinkedList<>();
-        sellQueue = new LinkedList<>();
+        buyQueue = new Queue();
+        sellQueue = new Queue();
     }
 
     public void enqueue(Order order) {
