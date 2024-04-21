@@ -81,7 +81,11 @@ public class Security {
 
         boolean losesPriority = order.isQuantityIncreased(updateOrderRq.getQuantity())
                 || updateOrderRq.getPrice() != order.getPrice()
-                || ((order instanceof IcebergOrder icebergOrder) && (icebergOrder.getPeakSize() < updateOrderRq.getPeakSize()));
+                || ((order instanceof IcebergOrder icebergOrder) && (icebergOrder.getPeakSize() < updateOrderRq.getPeakSize()))
+                || ((order instanceof StopOrder stopOrder) && (
+                        (stopOrder.getSide() == Side.BUY && stopOrder.getStopPrice() > updateOrderRq.getStopPrice())
+                                || (stopOrder.getSide() == Side.SELL && stopOrder.getStopPrice() < updateOrderRq.getStopPrice())))
+                ;
 
         if (updateOrderRq.getSide() == Side.BUY) {
             order.getBroker().increaseCreditBy(order.getValue());
