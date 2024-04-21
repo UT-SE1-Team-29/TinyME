@@ -47,6 +47,7 @@ public class Order {
         this.entryTime = entryTime;
         this.broker = broker;
         this.shareholder = shareholder;
+        this.status = OrderStatus.NEW;
     }
 
     public Order(long orderId, Security security, Side side, int quantity, int price, Broker broker, Shareholder shareholder) {
