@@ -1,10 +1,9 @@
 package ir.ramtung.tinyme.messaging;
 
 import ir.ramtung.tinyme.domain.entity.Side;
-import ir.ramtung.tinyme.messaging.request.EnterOrderRq;
 import ir.ramtung.tinyme.domain.service.OrderHandler;
+import ir.ramtung.tinyme.messaging.request.EnterOrderRq;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -18,7 +17,7 @@ import java.time.LocalDateTime;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 
-@Disabled
+// @Disabled
 @SpringBootTest
 @EnableJms
 public class RequestDispatcherTest {

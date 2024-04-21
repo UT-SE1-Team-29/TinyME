@@ -13,7 +13,6 @@ import org.springframework.context.annotation.Import;
 import org.springframework.test.annotation.DirtiesContext;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
 import static ir.ramtung.tinyme.domain.entity.Side.BUY;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -23,17 +22,19 @@ import static org.assertj.core.api.Assertions.assertThat;
 @DirtiesContext
 public class StopOrderHandlerTest {
     private Security security;
-    private Broker broker;
+    private Broker broker1;
+    private Broker broker2;
+    private Broker broker3;
     private Shareholder shareholder;
-    private OrderBook orderBook;
-    private List<Order> orders;
     @Autowired
     private Matcher matcher;
 
     @BeforeEach
     void setupOrderBook() {
         security = Security.builder().isin("TEST").build();
-        broker = Broker.builder().credit(100_000_000L).build();
+        broker1 = Broker.builder().credit(100_000_000L).build();
+        broker2 = Broker.builder().credit(100_000_000L).build();
+        broker3 = Broker.builder().credit(100_000_000L).build();
         shareholder = Shareholder.builder().build();
         shareholder.incPosition(security, 1_000);
     }
@@ -41,50 +42,51 @@ public class StopOrderHandlerTest {
     @Test
     void insert_buy_stop_order_but_do_not_match() {
         security.getOrderBook().enqueue(
-                new Order(1, security, Side.SELL, 100, 10, broker, shareholder)
+                new Order(1, security, Side.SELL, 100, 10, broker1, shareholder)
         );
 
         MatchResult result = security.newOrder(EnterOrderRq.createNewOrderRq(
                 1,
-                "TEST",
+                security.getIsin(),
                 2,
                 LocalDateTime.now(),
                 BUY,
                 120,
                 10,
-                2,
+                broker2.getBrokerId(),
                 shareholder.getShareholderId(),
                 0,
                 0,
                 10
-        ), broker, shareholder, matcher);
+        ), broker2, shareholder, matcher);
 
         assertThat(result.outcome()).isEqualTo(MatchingOutcome.EXECUTED);
         assertThat(result.trades()).hasSize(0);
         assertThat(security.getOrderBook().getSellQueue()).hasSize(1);
         assertThat(security.getOrderBook().getBuyQueue()).hasSize(1);
         assertThat(security.getOrderBook().getBuyQueue().get(0).getQuantity()).isEqualTo(120);
+        assertThat(broker2.getCredit()).isEqualTo(100_000_000L - 120 * 10L);
 
     }
 
     @Test
     void insert_buy_stop_order_and_match() {
         security.getOrderBook().enqueue(
-                new Order(1, security, Side.SELL, 100, 10, broker, shareholder)
+                new Order(1, security, Side.SELL, 100, 10, broker1, shareholder)
         );
 
         security.newOrder(EnterOrderRq.createNewOrderRq(
                 1,
-                "TEST",
+                security.getIsin(),
                 2,
                 LocalDateTime.now(),
                 BUY,
                 10,
                 10,
-                2,
+                broker2.getBrokerId(),
                 shareholder.getShareholderId(),
                 0
-        ), broker, shareholder, matcher);
+        ), broker2, shareholder, matcher);
 
         MatchResult result = security.newOrder(EnterOrderRq.createNewOrderRq(
                 1,
@@ -94,18 +96,18 @@ public class StopOrderHandlerTest {
                 BUY,
                 120,
                 15,
-                2,
+                broker3.getBrokerId(),
                 shareholder.getShareholderId(),
                 0,
                 0,
                 10
-        ), broker, shareholder, matcher);
+        ), broker3, shareholder, matcher);
 
         assertThat(result.outcome()).isEqualTo(MatchingOutcome.EXECUTED);
         assertThat(result.trades()).hasSize(1);
         assertThat(security.getOrderBook().getSellQueue()).hasSize(0);
         assertThat(security.getOrderBook().getBuyQueue()).hasSize(1);
         assertThat(security.getOrderBook().getBuyQueue().get(0).getQuantity()).isEqualTo(30);
-
+        assertThat(broker3.getCredit()).isEqualTo(100_000_000L - 90 * 10L - 30 * 15L);
     }
 }
