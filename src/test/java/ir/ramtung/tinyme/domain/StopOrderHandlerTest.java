@@ -26,6 +26,7 @@ import org.springframework.test.annotation.DirtiesContext;
 import java.time.LocalDateTime;
 
 import static ir.ramtung.tinyme.domain.entity.Side.BUY;
+import static ir.ramtung.tinyme.domain.entity.Side.SELL;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
@@ -264,6 +265,49 @@ public class StopOrderHandlerTest {
     }
 
     @Test
+    void insert_sell_stop_order_but_does_not_match_even_after_update() {
+        security.getOrderBook().enqueue(
+                new Order(1, security, BUY, 100, 10, broker1, shareholder)
+        );
+
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(
+                1,
+                security.getIsin(),
+                2,
+                LocalDateTime.now(),
+                SELL,
+                120,
+                10,
+                broker2.getBrokerId(),
+                shareholder.getShareholderId(),
+                0,
+                0,
+                5
+        ));
+        orderHandler.handleEnterOrder(EnterOrderRq.createUpdateOrderRq(
+                2,
+                security.getIsin(),
+                2,
+                LocalDateTime.now(),
+                SELL,
+                90,
+                10,
+                broker2.getBrokerId(),
+                shareholder.getShareholderId(),
+                0,
+                0,
+                5
+        ));
+
+        verify(eventPublisher).publish(any(OrderAcceptedEvent.class));
+        assertThat(security.getOrderBook().getSellQueue()).hasSize(1);
+        assertThat(security.getOrderBook().getBuyQueue()).hasSize(1);
+        assertThat(security.getOrderBook().getSellQueue().get(0).getQuantity()).isEqualTo(90);
+        assertThat(broker2.getCredit()).isEqualTo(100_000_000L);
+
+    }
+
+    @Test
     void insert_buy_stop_order_matching_after_update() {
         security.getOrderBook().enqueue(
                 new Order(1, security, Side.SELL, 100, 10, broker1, shareholder)
@@ -327,6 +371,74 @@ public class StopOrderHandlerTest {
 
         assertThat(security.getOrderBook().getBuyQueue().get(0).getQuantity()).isEqualTo(30);
         assertThat(broker3.getCredit()).isEqualTo(100_000_000L - 90 * 10L - 30 * 20L);
+    }
+
+    @Test
+    void insert_sell_stop_order_matching_after_update() {
+        security.getOrderBook().enqueue(
+                new Order(1, security, BUY, 100, 10, broker1, shareholder)
+        );
+
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(
+                1,
+                security.getIsin(),
+                2,
+                LocalDateTime.now(),
+                SELL,
+                10,
+                4,
+                broker2.getBrokerId(),
+                shareholder.getShareholderId(),
+                0
+        ));
+
+        verify(eventPublisher).publish(any(OrderAcceptedEvent.class));
+        verify(eventPublisher).publish(any(OrderExecutedEvent.class));
+
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(
+                2,
+                "TEST",
+                3,
+                LocalDateTime.now(),
+                SELL,
+                120,
+                8,
+                broker3.getBrokerId(),
+                shareholder.getShareholderId(),
+                0,
+                0,
+                4
+        ));
+
+        verify(eventPublisher, times(2)).publish(any(OrderAcceptedEvent.class));
+        assertThat(security.getOrderBook().getSellQueue()).hasSize(1);
+        assertThat(security.getOrderBook().getBuyQueue()).hasSize(1);
+
+        orderHandler.handleEnterOrder(EnterOrderRq.createUpdateOrderRq(
+                3,
+                security.getIsin(),
+                3,
+                LocalDateTime.now(),
+                SELL,
+                75,
+                8,
+                broker2.getBrokerId(),
+                shareholder.getShareholderId(),
+                0,
+                0,
+                15
+        ));
+
+        verify(eventPublisher, times(1)).publish(any(OrderUpdatedEvent.class));
+        verify(eventPublisher, times(1)).publish(any(OrderActivatedEvent.class));
+        verify(eventPublisher, times(2)).publish(any(OrderExecutedEvent.class));
+        assertThat(security.getOrderBook().getSellQueue()).hasSize(0);
+        assertThat(security.getOrderBook().getBuyQueue()).hasSize(1);
+
+        assertThat(security.getOrderBook().getBuyQueue().get(0).getQuantity()).isEqualTo(15);
+        assertThat(broker1.getCredit()).isEqualTo(100_000_000L);
+        assertThat(broker2.getCredit()).isEqualTo(100_000_000L + 10 * 10L);
+        assertThat(broker3.getCredit()).isEqualTo(100_000_000L + 75 * 10L);
     }
 
     @Test
