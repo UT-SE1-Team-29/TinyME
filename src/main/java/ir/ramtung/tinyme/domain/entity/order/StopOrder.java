@@ -33,8 +33,6 @@ public class StopOrder extends Order {
     }
 
     public void activate() {
-        assert !hasActivated;
-
         hasActivated = true;
     }
 

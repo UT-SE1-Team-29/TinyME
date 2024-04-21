@@ -71,6 +71,17 @@ public class Matcher {
     }
 
     public MatchResult execute(Order order) {
+        if (!order.isActive()) { // inactive orders
+            if (order.getSide() == Side.BUY) {
+                if (!order.getBroker().hasEnoughCredit(order.getValue())) {
+                    return MatchResult.notEnoughCredit();
+                }
+                order.getBroker().decreaseCreditBy(order.getValue());
+            }
+            order.getSecurity().getOrderBook().enqueue(order);
+            return MatchResult.executed(order, new LinkedList<>());
+        }
+
         MatchResult result = match(order);
         if (result.outcome() == MatchingOutcome.NOT_ENOUGH_CREDIT)
             return result;
