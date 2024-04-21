@@ -1,5 +1,6 @@
-package ir.ramtung.tinyme.domain.entity;
+package ir.ramtung.tinyme.domain.entity.order;
 
+import ir.ramtung.tinyme.domain.entity.*;
 import ir.ramtung.tinyme.messaging.request.EnterOrderRq;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
@@ -46,7 +47,6 @@ public class Order {
         this.entryTime = entryTime;
         this.broker = broker;
         this.shareholder = shareholder;
-        this.status = OrderStatus.NEW;
     }
 
     public Order(long orderId, Security security, Side side, int quantity, int price, Broker broker, Shareholder shareholder) {
@@ -107,4 +107,8 @@ public class Order {
     }
 
     public int getTotalQuantity() { return quantity; }
+
+    public boolean isActive() {
+        return true;
+    }
 }

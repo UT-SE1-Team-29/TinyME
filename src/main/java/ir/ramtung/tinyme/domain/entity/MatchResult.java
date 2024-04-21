@@ -1,5 +1,7 @@
 package ir.ramtung.tinyme.domain.entity;
 
+import ir.ramtung.tinyme.domain.entity.order.Order;
+
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;

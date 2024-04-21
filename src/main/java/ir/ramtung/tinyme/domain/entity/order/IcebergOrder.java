@@ -1,5 +1,6 @@
-package ir.ramtung.tinyme.domain.entity;
+package ir.ramtung.tinyme.domain.entity.order;
 
+import ir.ramtung.tinyme.domain.entity.*;
 import ir.ramtung.tinyme.messaging.request.EnterOrderRq;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;

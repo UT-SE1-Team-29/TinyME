@@ -1,5 +1,6 @@
 package ir.ramtung.tinyme.domain.entity;
 
+import ir.ramtung.tinyme.domain.entity.order.Order;
 import lombok.Getter;
 
 import java.util.LinkedList;
