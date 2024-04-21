@@ -3,6 +3,7 @@ package ir.ramtung.tinyme.domain.service;
 import ir.ramtung.tinyme.domain.entity.*;
 import ir.ramtung.tinyme.domain.entity.order.IcebergOrder;
 import ir.ramtung.tinyme.domain.entity.order.Order;
+import ir.ramtung.tinyme.domain.entity.order.StopOrder;
 import org.springframework.stereotype.Service;
 
 import java.util.LinkedList;
@@ -108,6 +109,8 @@ public class Matcher {
     public MatchResult executeWithMinimumQuantityCondition(Order order, int minimumExecutionQuantity) {
         int originalOrderQuantity = order.getTotalQuantity();
         MatchResult result = execute(order);
+        if (order instanceof StopOrder) return result;
+
         if (result.remainder() != null && originalOrderQuantity - result.remainder().getTotalQuantity() < minimumExecutionQuantity) {
             if (order.getSide() == Side.BUY) {
                 rollbackTradesForBuyOrders(order, result.trades());

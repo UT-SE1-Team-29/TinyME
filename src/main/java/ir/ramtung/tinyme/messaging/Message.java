@@ -7,7 +7,9 @@ public class Message {
     public static final String UNKNOWN_SECURITY_ISIN = "Unknown security ISIN";
     public static final String ORDER_ID_NOT_FOUND = "Order ID not found in the order book";
     public static final String INVALID_PEAK_SIZE = "Iceberg order peak size is out of range";
+    public static final String INVALID_STOP_PRICE = "Can't apply stop price to the stop order";
     public static final String CANNOT_SPECIFY_PEAK_SIZE_FOR_A_NON_ICEBERG_ORDER = "Cannot specify peak size for a non-iceberg order";
+    public static final String CANNOT_SPECIFY_STOP_PRICE_FOR_A_NON_STOP_ORDER = "Cannot specify stop price for an order with no stop limit";
     public static final String UNKNOWN_BROKER_ID = "Unknown broker ID";
     public static final String UNKNOWN_SHAREHOLDER_ID = "Unknown shareholder ID";
     public static final String BUYER_HAS_NOT_ENOUGH_CREDIT = "Buyer has not enough credit";

@@ -69,6 +69,10 @@ public class Security {
             throw new InvalidRequestException(Message.INVALID_PEAK_SIZE);
         if (!(order instanceof IcebergOrder) && updateOrderRq.getPeakSize() != 0)
             throw new InvalidRequestException(Message.CANNOT_SPECIFY_PEAK_SIZE_FOR_A_NON_ICEBERG_ORDER);
+        if ((order instanceof StopOrder) && order.isActive() && updateOrderRq.getStopPrice() != 0)
+            throw new InvalidRequestException(Message.INVALID_STOP_PRICE);
+        if (!(order instanceof StopOrder) && updateOrderRq.getStopPrice() != 0)
+            throw new InvalidRequestException(Message.CANNOT_SPECIFY_STOP_PRICE_FOR_A_NON_STOP_ORDER);
 
         if (updateOrderRq.getSide() == Side.SELL &&
                 !order.getShareholder().hasEnoughPositionsOn(this,
@@ -94,6 +98,14 @@ public class Security {
             order.markAsNew();
 
         orderBook.removeByOrderId(updateOrderRq.getSide(), updateOrderRq.getOrderId());
+
+        boolean hasActivated;
+        if (order instanceof StopOrder stopOrder) {
+            hasActivated = activateIfPossible(stopOrder);
+        } else {
+            hasActivated = false;
+        }
+
         MatchResult matchResult = matcher.execute(order);
         if (matchResult.outcome() != MatchingOutcome.EXECUTED) {
             orderBook.enqueue(originalOrder);
@@ -103,7 +115,10 @@ public class Security {
         }
         updateLastTransactionPrice(matchResult);
         List<Order> activatedOrders = activateQueuedOrdersIfPossibleThenGetThem();
+
+        if (hasActivated) matchResult.addActivatedOrder(order);
         activatedOrders.forEach(matchResult::addActivatedOrder);
+
         return matchResult;
     }
 
