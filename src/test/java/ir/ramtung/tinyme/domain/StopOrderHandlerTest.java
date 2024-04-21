@@ -1,10 +1,20 @@
 package ir.ramtung.tinyme.domain;
 
 import ir.ramtung.tinyme.config.MockedJMSTestConfig;
-import ir.ramtung.tinyme.domain.entity.*;
+import ir.ramtung.tinyme.domain.entity.Broker;
+import ir.ramtung.tinyme.domain.entity.Security;
+import ir.ramtung.tinyme.domain.entity.Shareholder;
+import ir.ramtung.tinyme.domain.entity.Side;
 import ir.ramtung.tinyme.domain.entity.order.Order;
-import ir.ramtung.tinyme.domain.service.Matcher;
+import ir.ramtung.tinyme.domain.service.OrderHandler;
+import ir.ramtung.tinyme.messaging.EventPublisher;
+import ir.ramtung.tinyme.messaging.event.OrderAcceptedEvent;
+import ir.ramtung.tinyme.messaging.event.OrderActivatedEvent;
+import ir.ramtung.tinyme.messaging.event.OrderExecutedEvent;
 import ir.ramtung.tinyme.messaging.request.EnterOrderRq;
+import ir.ramtung.tinyme.repository.BrokerRepository;
+import ir.ramtung.tinyme.repository.SecurityRepository;
+import ir.ramtung.tinyme.repository.ShareholderRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,6 +26,9 @@ import java.time.LocalDateTime;
 
 import static ir.ramtung.tinyme.domain.entity.Side.BUY;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 @SpringBootTest
 @Import(MockedJMSTestConfig.class)
@@ -27,16 +40,37 @@ public class StopOrderHandlerTest {
     private Broker broker3;
     private Shareholder shareholder;
     @Autowired
-    private Matcher matcher;
+    OrderHandler orderHandler;
+    @Autowired
+    EventPublisher eventPublisher;
+    @Autowired
+    SecurityRepository securityRepository;
+    @Autowired
+    BrokerRepository brokerRepository;
+    @Autowired
+    ShareholderRepository shareholderRepository;
 
     @BeforeEach
     void setupOrderBook() {
+        securityRepository.clear();
+        brokerRepository.clear();
+        shareholderRepository.clear();
+
         security = Security.builder().isin("TEST").build();
-        broker1 = Broker.builder().credit(100_000_000L).build();
-        broker2 = Broker.builder().credit(100_000_000L).build();
-        broker3 = Broker.builder().credit(100_000_000L).build();
-        shareholder = Shareholder.builder().build();
+        securityRepository.addSecurity(security);
+
+        broker1 = Broker.builder().brokerId(1).credit(100_000_000L).build();
+        brokerRepository.addBroker(broker1);
+
+        broker2 = Broker.builder().brokerId(2).credit(100_000_000L).build();
+        brokerRepository.addBroker(broker2);
+
+        broker3 = Broker.builder().brokerId(3).credit(100_000_000L).build();
+        brokerRepository.addBroker(broker3);
+
+        shareholder = Shareholder.builder().shareholderId(1).build();
         shareholder.incPosition(security, 1_000);
+        shareholderRepository.addShareholder(shareholder);
     }
 
     @Test
@@ -45,7 +79,7 @@ public class StopOrderHandlerTest {
                 new Order(1, security, Side.SELL, 100, 10, broker1, shareholder)
         );
 
-        MatchResult result = security.newOrder(EnterOrderRq.createNewOrderRq(
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(
                 1,
                 security.getIsin(),
                 2,
@@ -58,10 +92,9 @@ public class StopOrderHandlerTest {
                 0,
                 0,
                 10
-        ), broker2, shareholder, matcher);
+        ));
 
-        assertThat(result.outcome()).isEqualTo(MatchingOutcome.EXECUTED);
-        assertThat(result.trades()).hasSize(0);
+        verify(eventPublisher).publish(any(OrderAcceptedEvent.class));
         assertThat(security.getOrderBook().getSellQueue()).hasSize(1);
         assertThat(security.getOrderBook().getBuyQueue()).hasSize(1);
         assertThat(security.getOrderBook().getBuyQueue().get(0).getQuantity()).isEqualTo(120);
@@ -75,7 +108,7 @@ public class StopOrderHandlerTest {
                 new Order(1, security, Side.SELL, 100, 10, broker1, shareholder)
         );
 
-        security.newOrder(EnterOrderRq.createNewOrderRq(
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(
                 1,
                 security.getIsin(),
                 2,
@@ -86,9 +119,9 @@ public class StopOrderHandlerTest {
                 broker2.getBrokerId(),
                 shareholder.getShareholderId(),
                 0
-        ), broker2, shareholder, matcher);
+        ));
 
-        MatchResult result = security.newOrder(EnterOrderRq.createNewOrderRq(
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(
                 1,
                 "TEST",
                 2,
@@ -101,10 +134,11 @@ public class StopOrderHandlerTest {
                 0,
                 0,
                 10
-        ), broker3, shareholder, matcher);
+        ));
 
-        assertThat(result.outcome()).isEqualTo(MatchingOutcome.EXECUTED);
-        assertThat(result.trades()).hasSize(1);
+        verify(eventPublisher, times(2)).publish(any(OrderAcceptedEvent.class));
+        verify(eventPublisher, times(1)).publish(any(OrderActivatedEvent.class));
+        verify(eventPublisher, times(2)).publish(any(OrderExecutedEvent.class));
         assertThat(security.getOrderBook().getSellQueue()).hasSize(0);
         assertThat(security.getOrderBook().getBuyQueue()).hasSize(1);
         assertThat(security.getOrderBook().getBuyQueue().get(0).getQuantity()).isEqualTo(30);

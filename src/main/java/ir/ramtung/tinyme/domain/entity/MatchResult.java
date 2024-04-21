@@ -10,6 +10,7 @@ public final class MatchResult {
     private final MatchingOutcome outcome;
     private final Order remainder;
     private final LinkedList<Trade> trades;
+    private final List<Order> activatedOrders;
 
     public static MatchResult executed(Order remainder, List<Trade> trades) {
         return new MatchResult(MatchingOutcome.EXECUTED, remainder, new LinkedList<>(trades));
@@ -30,6 +31,7 @@ public final class MatchResult {
         this.outcome = outcome;
         this.remainder = remainder;
         this.trades = trades;
+        this.activatedOrders = new LinkedList<>();
     }
 
     public MatchingOutcome outcome() {
@@ -43,6 +45,10 @@ public final class MatchResult {
         return trades;
     }
 
+    public List<Order> activatedOrders() {
+        return activatedOrders;
+    }
+
     @Override
     public boolean equals(Object obj) {
         if (obj == this) return true;
@@ -50,6 +56,10 @@ public final class MatchResult {
         var that = (MatchResult) obj;
         return Objects.equals(this.remainder, that.remainder) &&
                 Objects.equals(this.trades, that.trades);
+    }
+
+    public void addActivatedOrder(Order order) {
+        activatedOrders.add(order);
     }
 
     @Override

@@ -23,16 +23,14 @@ public class StopOrder extends Order {
         this(orderId, security, side, quantity, price, broker, shareholder, entryTime, stopPrice, OrderStatus.NEW);
     }
 
-    public StopOrder(long orderId, Security security, Side side, int quantity, int price, Broker broker, Shareholder shareholder, int stopPrice) {
-        this(orderId, security, side, quantity, price, broker, shareholder, LocalDateTime.now(), stopPrice, OrderStatus.NEW);
-    }
-
     @Override
     public boolean isActive() {
         return hasActivated;
     }
 
     public void activate() {
+        assert !hasActivated;
+
         hasActivated = true;
     }
 

@@ -11,6 +11,7 @@ import ir.ramtung.tinyme.messaging.Message;
 import lombok.Builder;
 import lombok.Getter;
 
+import java.util.LinkedList;
 import java.util.List;
 
 @Getter
@@ -33,9 +34,21 @@ public class Security {
             return MatchResult.notEnoughPositions();
         Order order = getOrder(enterOrderRq, broker, shareholder);
 
+        boolean hasActivated;
+        if (order instanceof StopOrder stopOrder) {
+            hasActivated = activateIfPossible(stopOrder);
+        } else {
+            hasActivated = false;
+        }
+
         MatchResult matchResult = matcher.executeWithMinimumQuantityCondition(order, enterOrderRq.getMinimumExecutionQuantity());
         updateLastTransactionPrice(matchResult);
-        activateQueuedOrdersIfPossible();
+
+        List<Order> activatedOrders = activateQueuedOrdersIfPossibleThenGetThem();
+
+        if (hasActivated) matchResult.addActivatedOrder(order);
+        activatedOrders.forEach(matchResult::addActivatedOrder);
+
         return matchResult;
     }
 
@@ -89,7 +102,8 @@ public class Security {
             }
         }
         updateLastTransactionPrice(matchResult);
-        activateQueuedOrdersIfPossible();
+        List<Order> activatedOrders = activateQueuedOrdersIfPossibleThenGetThem();
+        activatedOrders.forEach(matchResult::addActivatedOrder);
         return matchResult;
     }
 
@@ -99,10 +113,8 @@ public class Security {
                     enterOrderRq.getQuantity(), enterOrderRq.getPrice(), broker, shareholder,
                     enterOrderRq.getEntryTime(), enterOrderRq.getPeakSize());
         if (enterOrderRq.getStopPrice() > 0) {
-            StopOrder order = new StopOrder(enterOrderRq.getOrderId(), this, enterOrderRq.getSide(),
+            return new StopOrder(enterOrderRq.getOrderId(), this, enterOrderRq.getSide(),
                     enterOrderRq.getQuantity(), enterOrderRq.getPrice(), broker, shareholder, enterOrderRq.getEntryTime(), enterOrderRq.getStopPrice());
-            activateIfPossible(order);
-            return order;
         }
         return new Order(enterOrderRq.getOrderId(), this, enterOrderRq.getSide(),
                 enterOrderRq.getQuantity(), enterOrderRq.getPrice(), broker, shareholder, enterOrderRq.getEntryTime());
@@ -113,19 +125,26 @@ public class Security {
             lastTransactionPrice = result.trades().getLast().getPrice();
     }
 
-    private void activateIfPossible(StopOrder order) {
-        if (lastTransactionPrice == null) return;
+    private boolean activateIfPossible(Order order) {
+        if (! (order instanceof StopOrder stopOrder)) return false;
+        if (lastTransactionPrice == null) return false;
+        if (stopOrder.isActive()) return false;
 
-        var condition = (order.getSide() == Side.BUY && order.getStopPrice() <= lastTransactionPrice)
-                || (order.getSide() == Side.SELL && order.getStopPrice() >= lastTransactionPrice);
-        if (condition) order.activate();
+        var condition = (stopOrder.getSide() == Side.BUY && stopOrder.getStopPrice() <= lastTransactionPrice)
+                || (stopOrder.getSide() == Side.SELL && stopOrder.getStopPrice() >= lastTransactionPrice);
+        if (condition) {
+            stopOrder.activate();
+            return true;
+        }
+        return false;
     }
 
-    private void activateQueuedOrdersIfPossible() {
+    private List<Order> activateQueuedOrdersIfPossibleThenGetThem() {
+        List<Order> activatedOrders = new LinkedList<>();
         for (Order order : this.orderBook.getBuyQueue()) {
-            if (order instanceof StopOrder stopOrder) {
-                activateIfPossible(stopOrder);
-            }
+            boolean hasActivated = activateIfPossible(order);
+            if (hasActivated) activatedOrders.add(order);
         }
+        return activatedOrders;
     }
 }
