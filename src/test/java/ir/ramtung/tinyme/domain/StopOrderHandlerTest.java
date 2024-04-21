@@ -8,16 +8,15 @@ import ir.ramtung.tinyme.domain.entity.Side;
 import ir.ramtung.tinyme.domain.entity.order.Order;
 import ir.ramtung.tinyme.domain.service.OrderHandler;
 import ir.ramtung.tinyme.messaging.EventPublisher;
-import ir.ramtung.tinyme.messaging.event.OrderAcceptedEvent;
-import ir.ramtung.tinyme.messaging.event.OrderActivatedEvent;
-import ir.ramtung.tinyme.messaging.event.OrderExecutedEvent;
-import ir.ramtung.tinyme.messaging.event.OrderUpdatedEvent;
+import ir.ramtung.tinyme.messaging.Message;
+import ir.ramtung.tinyme.messaging.event.*;
 import ir.ramtung.tinyme.messaging.request.EnterOrderRq;
 import ir.ramtung.tinyme.repository.BrokerRepository;
 import ir.ramtung.tinyme.repository.SecurityRepository;
 import ir.ramtung.tinyme.repository.ShareholderRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
@@ -73,6 +72,109 @@ public class StopOrderHandlerTest {
         shareholder = Shareholder.builder().shareholderId(1).build();
         shareholder.incPosition(security, 1_000);
         shareholderRepository.addShareholder(shareholder);
+    }
+
+    @Test
+    void invalid_insertion_of_a_stop_order_due_to_negative_stop_price() {
+        security.getOrderBook().enqueue(
+                new Order(1, security, Side.SELL, 100, 10, broker1, shareholder)
+        );
+
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(
+                1,
+                security.getIsin(),
+                2,
+                LocalDateTime.now(),
+                BUY,
+                120,
+                10,
+                broker2.getBrokerId(),
+                shareholder.getShareholderId(),
+                0,
+                0,
+                -1
+        ));
+
+        ArgumentCaptor<OrderRejectedEvent> orderRejectedCaptor = ArgumentCaptor.forClass(OrderRejectedEvent.class);
+        verify(eventPublisher).publish(orderRejectedCaptor.capture());
+        OrderRejectedEvent outputEvent = orderRejectedCaptor.getValue();
+        assertThat(outputEvent.getErrors()).containsOnly(
+                Message.INVALID_STOP_PRICE
+        );
+
+        assertThat(security.getOrderBook().getSellQueue()).hasSize(1);
+        assertThat(security.getOrderBook().getBuyQueue()).hasSize(0);
+        assertThat(broker2.getCredit()).isEqualTo(100_000_000L);
+
+    }
+
+    @Test
+    void invalid_insertion_of_a_stop_order_due_to_minimum_execution_quantity() {
+        security.getOrderBook().enqueue(
+                new Order(1, security, Side.SELL, 100, 10, broker1, shareholder)
+        );
+
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(
+                1,
+                security.getIsin(),
+                2,
+                LocalDateTime.now(),
+                BUY,
+                120,
+                10,
+                broker2.getBrokerId(),
+                shareholder.getShareholderId(),
+                0,
+                10,
+                10
+        ));
+
+        ArgumentCaptor<OrderRejectedEvent> orderRejectedCaptor = ArgumentCaptor.forClass(OrderRejectedEvent.class);
+        verify(eventPublisher).publish(orderRejectedCaptor.capture());
+        OrderRejectedEvent outputEvent = orderRejectedCaptor.getValue();
+        assertThat(outputEvent.getErrors()).containsOnly(
+                Message.INVALID_MINIMUM_EXECUTION_QUANTITY_FOR_STOP_ORDERS
+        );
+
+        assertThat(security.getOrderBook().getSellQueue()).hasSize(1);
+        assertThat(security.getOrderBook().getBuyQueue()).hasSize(0);
+        assertThat(broker2.getCredit()).isEqualTo(100_000_000L);
+
+    }
+
+    @Test
+    void invalid_insertion_of_a_stop_order_due_to_peak_size_and_minimum_execution_quantity() {
+        security.getOrderBook().enqueue(
+                new Order(1, security, Side.SELL, 100, 10, broker1, shareholder)
+        );
+
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(
+                1,
+                security.getIsin(),
+                2,
+                LocalDateTime.now(),
+                BUY,
+                120,
+                10,
+                broker2.getBrokerId(),
+                shareholder.getShareholderId(),
+                54,
+                4,
+                10
+        ));
+
+        ArgumentCaptor<OrderRejectedEvent> orderRejectedCaptor = ArgumentCaptor.forClass(OrderRejectedEvent.class);
+        verify(eventPublisher).publish(orderRejectedCaptor.capture());
+        OrderRejectedEvent outputEvent = orderRejectedCaptor.getValue();
+        assertThat(outputEvent.getErrors()).containsOnly(
+                Message.INVALID_PEAK_SIZE_FOR_STOP_ORDERS,
+                Message.INVALID_MINIMUM_EXECUTION_QUANTITY_FOR_STOP_ORDERS
+        );
+
+        assertThat(security.getOrderBook().getSellQueue()).hasSize(1);
+        assertThat(security.getOrderBook().getBuyQueue()).hasSize(0);
+        assertThat(broker2.getCredit()).isEqualTo(100_000_000L);
+
     }
 
     @Test

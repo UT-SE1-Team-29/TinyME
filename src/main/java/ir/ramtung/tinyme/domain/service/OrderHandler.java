@@ -113,6 +113,12 @@ public class OrderHandler {
             errors.add(Message.INVALID_PEAK_SIZE);
         if (enterOrderRq.getMinimumExecutionQuantity() < 0 || enterOrderRq.getMinimumExecutionQuantity() > enterOrderRq.getQuantity())
             errors.add(Message.INVALID_MINIMUM_EXECUTION_QUANTITY);
+        if (enterOrderRq.getStopPrice() < 0)
+            errors.add(Message.INVALID_STOP_PRICE);
+        if(enterOrderRq.getStopPrice() > 0 && enterOrderRq.getMinimumExecutionQuantity() > 0)
+            errors.add(Message.INVALID_MINIMUM_EXECUTION_QUANTITY_FOR_STOP_ORDERS);
+        if(enterOrderRq.getStopPrice() > 0 && enterOrderRq.getPeakSize() > 0)
+            errors.add(Message.INVALID_PEAK_SIZE_FOR_STOP_ORDERS);
         if (!errors.isEmpty())
             throw new InvalidRequestException(errors);
     }
