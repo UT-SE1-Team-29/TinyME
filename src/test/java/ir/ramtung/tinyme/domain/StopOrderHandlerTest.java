@@ -144,4 +144,136 @@ public class StopOrderHandlerTest {
         assertThat(security.getOrderBook().getBuyQueue().get(0).getQuantity()).isEqualTo(30);
         assertThat(broker3.getCredit()).isEqualTo(100_000_000L - 90 * 10L - 30 * 15L);
     }
+
+    @Test
+    void validate_order_input() {
+        EnterOrderRq request = EnterOrderRq.createNewOrderRq(
+                1,
+                security.getIsin(),
+                2,
+                LocalDateTime.now(),
+                BUY,
+                120,
+                10,
+                broker2.getBrokerId(),
+                shareholder.getShareholderId(),
+                0, 
+                0,
+                10
+        );
+
+        MatchResult result = security.newOrder(request, broker2, shareholder, matcher);
+
+        assertThat(result.outcome()).isEqualTo(MatchingOutcome.INVALID);
+    }
+
+    @Test
+    void activate_stop_order() {
+        security.getOrderBook().enqueue(
+                new Order(1, security, Side.SELL, 100, 10, broker1, shareholder)
+        );
+
+        MatchResult result = security.newOrder(EnterOrderRq.createNewOrderRq(
+                1,
+                security.getIsin(),
+                2,
+                LocalDateTime.now(),
+                BUY,
+                120,
+                10,
+                broker2.getBrokerId(),
+                shareholder.getShareholderId(),
+                0,
+                0,
+                10
+        ), broker2, shareholder, matcher);
+
+        assertThat(result.outcome()).isEqualTo(MatchingOutcome.EXECUTED);
+    }
+
+    @Test
+    void update_stop_order() {
+        security.getOrderBook().enqueue(
+                new Order(1, security, Side.SELL, 100, 10, broker1, shareholder)
+        );
+
+        MatchResult result = security.newOrder(EnterOrderRq.createNewOrderRq(
+                1,
+                security.getIsin(),
+                2,
+                LocalDateTime.now(),
+                BUY,
+                120,
+                10,
+                broker2.getBrokerId(),
+                shareholder.getShareholderId(),
+                0,
+                0,
+                10
+        ), broker2, shareholder, matcher);
+
+        assertThat(result.outcome()).isEqualTo(MatchingOutcome.EXECUTED);
+    }
+
+    @Test
+    void accept_order() {
+
+        security.getOrderBook().enqueue(
+                new Order(1, security, Side.SELL, 100, 10, broker1, shareholder)
+        );
+
+        MatchResult result = security.newOrder(EnterOrderRq.createNewOrderRq(
+                1,
+                security.getIsin(),
+                2,
+                LocalDateTime.now(),
+                BUY,
+                120,
+                10,
+                broker2.getBrokerId(),
+                shareholder.getShareholderId(),
+                0,
+                0,
+                10
+        ), broker2, shareholder, matcher);
+
+        assertThat(result.outcome()).isEqualTo(MatchingOutcome.EXECUTED);
+    }
+
+    @Test
+    void execute_order() {
+
+        security.getOrderBook().enqueue(
+                new Order(1, security, Side.SELL, 100, 10, broker1, shareholder)
+        );
+        security.newOrder(EnterOrderRq.createNewOrderRq(
+                1,
+                security.getIsin(),
+                2,
+                LocalDateTime.now(),
+                BUY,
+                10,
+                10,
+                broker2.getBrokerId(),
+                shareholder.getShareholderId(),
+                0
+        ), broker2, shareholder, matcher);
+
+        MatchResult result = security.newOrder(EnterOrderRq.createNewOrderRq(
+                1,
+                "TEST",
+                2,
+                LocalDateTime.now(),
+                BUY,
+                120,
+                15,
+                broker3.getBrokerId(),
+                shareholder.getShareholderId(),
+                0,
+                0,
+                10
+        ), broker3, shareholder, matcher);
+
+        assertThat(result.outcome()).isEqualTo(MatchingOutcome.EXECUTED);
+    }
 }
