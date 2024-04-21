@@ -16,6 +16,7 @@ public class StopOrder extends Order {
     public StopOrder(long orderId, Security security, Side side, int quantity, int price, Broker broker, Shareholder shareholder, LocalDateTime entryTime, int stopPrice, OrderStatus status) {
         super(orderId, security, side, quantity, price, broker, shareholder, entryTime, status);
         this.stopPrice = stopPrice;
+        this.hasActivated = false;
     }
 
     public StopOrder(long orderId, Security security, Side side, int quantity, int price, Broker broker, Shareholder shareholder, LocalDateTime entryTime, int stopPrice) {
