@@ -10,6 +10,7 @@ import ir.ramtung.tinyme.domain.service.OrderHandler;
 import ir.ramtung.tinyme.messaging.EventPublisher;
 import ir.ramtung.tinyme.messaging.Message;
 import ir.ramtung.tinyme.messaging.event.*;
+import ir.ramtung.tinyme.messaging.request.DeleteOrderRq;
 import ir.ramtung.tinyme.messaging.request.EnterOrderRq;
 import ir.ramtung.tinyme.repository.BrokerRepository;
 import ir.ramtung.tinyme.repository.SecurityRepository;
@@ -72,6 +73,73 @@ public class StopOrderHandlerTest {
         shareholder = Shareholder.builder().shareholderId(1).build();
         shareholder.incPosition(security, 1_000);
         shareholderRepository.addShareholder(shareholder);
+    }
+
+    @Test
+    void deleting_an_inactive_stop_order() {
+        security.getOrderBook().enqueue(
+                new Order(1, security, Side.SELL, 100, 10, broker1, shareholder)
+        );
+
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(
+                1,
+                security.getIsin(),
+                2,
+                LocalDateTime.now(),
+                BUY,
+                120,
+                10,
+                broker2.getBrokerId(),
+                shareholder.getShareholderId(),
+                0,
+                0,
+                10
+        ));
+
+        orderHandler.handleDeleteOrder(new DeleteOrderRq(2, security.getIsin(), BUY, 2));
+
+        verify(eventPublisher, times(1)).publish(any(OrderAcceptedEvent.class));
+        verify(eventPublisher, times(1)).publish(any(OrderDeletedEvent.class));
+    }
+
+    @Test
+    void deleting_an_active_stop_order() {
+        security.getOrderBook().enqueue(
+                new Order(1, security, Side.SELL, 100, 10, broker1, shareholder)
+        );
+
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(
+                1,
+                security.getIsin(),
+                2,
+                LocalDateTime.now(),
+                BUY,
+                10,
+                10,
+                broker2.getBrokerId(),
+                shareholder.getShareholderId(),
+                0
+        ));
+
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(
+                2,
+                security.getIsin(),
+                3,
+                LocalDateTime.now(),
+                BUY,
+                120,
+                10,
+                broker2.getBrokerId(),
+                shareholder.getShareholderId(),
+                0,
+                0,
+                10
+        ));
+
+        orderHandler.handleDeleteOrder(new DeleteOrderRq(3, security.getIsin(), BUY, 3));
+
+        verify(eventPublisher, times(2)).publish(any(OrderAcceptedEvent.class));
+        verify(eventPublisher, times(1)).publish(any(OrderDeletedEvent.class));
     }
 
     @Test
