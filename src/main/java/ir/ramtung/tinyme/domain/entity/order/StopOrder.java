@@ -25,6 +25,16 @@ public class StopOrder extends Order {
     }
 
     @Override
+    public Order snapshot() {
+        return new StopOrder(orderId, security, side, quantity, price, broker, shareholder, entryTime, stopPrice, OrderStatus.SNAPSHOT);
+    }
+
+    @Override
+    public Order snapshotWithQuantity(int newQuantity) {
+        return new StopOrder(orderId, security, side, newQuantity, price, broker, shareholder, entryTime, stopPrice, OrderStatus.SNAPSHOT);
+    }
+
+    @Override
     public boolean isActive() {
         return active;
     }
