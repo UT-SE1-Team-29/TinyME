@@ -2,6 +2,7 @@ package ir.ramtung.tinyme.domain.entity;
 
 import ir.ramtung.tinyme.domain.entity.order.IcebergOrder;
 import ir.ramtung.tinyme.domain.entity.order.Order;
+import ir.ramtung.tinyme.domain.entity.order.Order;
 import ir.ramtung.tinyme.domain.entity.order.StopOrder;
 import ir.ramtung.tinyme.messaging.exception.InvalidRequestException;
 import ir.ramtung.tinyme.messaging.request.DeleteOrderRq;
@@ -37,14 +38,14 @@ public class Security {
         Order order = getOrder(enterOrderRq, broker, shareholder);
 
         List<Order> activatedOrders = new ArrayList<>();
-        if (order instanceof StopOrder stopOrder && activateIfPossible(stopOrder)) {
+        if (order instanceof StopOrder stopOrder && tryActivateStopOrder(stopOrder)) {
             activatedOrders.add(stopOrder);
         }
 
         MatchResult matchResult = matcher.executeWithMinimumQuantityCondition(order, enterOrderRq.getMinimumExecutionQuantity());
         updateLastTransactionPrice(matchResult);
 
-        activatedOrders.addAll(activateQueuedOrdersIfPossibleThenGetThem());
+        activatedOrders.addAll(tryActivateQueuedStopOrdersThenReturnTheActivated());
         activatedOrders.forEach(matchResult::addActivatedOrder);
 
         return matchResult;
@@ -83,7 +84,7 @@ public class Security {
         orderBook.removeByOrderId(updateOrderRq.getSide(), updateOrderRq.getOrderId());
 
         List<Order> activatedOrders = new ArrayList<>();
-        if (order instanceof StopOrder stopOrder && activateIfPossible(stopOrder)) {
+        if (order instanceof StopOrder stopOrder && tryActivateStopOrder(stopOrder)) {
             activatedOrders.add(stopOrder);
         }
 
@@ -95,7 +96,7 @@ public class Security {
             }
         }
         updateLastTransactionPrice(matchResult);
-        activatedOrders.addAll(activateQueuedOrdersIfPossibleThenGetThem());
+        activatedOrders.addAll(tryActivateQueuedStopOrdersThenReturnTheActivated());
 
         activatedOrders.forEach(matchResult::addActivatedOrder);
 
@@ -124,9 +125,9 @@ public class Security {
             throw new InvalidRequestException(Message.INVALID_PEAK_SIZE);
         if (!(order instanceof IcebergOrder) && updateOrderRq.getPeakSize() != 0)
             throw new InvalidRequestException(Message.CANNOT_SPECIFY_PEAK_SIZE_FOR_A_NON_ICEBERG_ORDER);
-        if ((order instanceof StopOrder) && order.isActive() && updateOrderRq.getStopPrice() != 0)
+        if ((order instanceof Order) && order.isActive() && updateOrderRq.getStopPrice() != 0)
             throw new InvalidRequestException(Message.INVALID_STOP_PRICE);
-        if (!(order instanceof StopOrder) && updateOrderRq.getStopPrice() != 0)
+        if (!(order instanceof Order) && updateOrderRq.getStopPrice() != 0)
             throw new InvalidRequestException(Message.CANNOT_SPECIFY_STOP_PRICE_FOR_A_NON_STOP_ORDER);
     }
 
@@ -151,25 +152,26 @@ public class Security {
     /**
      * @return true if activation happens and false otherwise
      */
-    private boolean activateIfPossible(Order order) {
-        if (! (order instanceof StopOrder stopOrder)) return false;
+    private boolean tryActivateStopOrder(StopOrder order) {
         if (lastTransactionPrice == null) return false;
-        if (stopOrder.isActive()) return false;
+        if (order.isActive()) return false;
 
-        var condition = (stopOrder.getSide() == Side.BUY && stopOrder.getStopPrice() <= lastTransactionPrice)
-                || (stopOrder.getSide() == Side.SELL && stopOrder.getStopPrice() >= lastTransactionPrice);
+        var condition = (order.getSide() == Side.BUY && order.getStopPrice() <= lastTransactionPrice)
+                || (order.getSide() == Side.SELL && order.getStopPrice() >= lastTransactionPrice);
         if (condition) {
-            stopOrder.activate();
+            order.activate();
             return true;
         }
         return false;
     }
 
-    private List<Order> activateQueuedOrdersIfPossibleThenGetThem() {
+    private List<Order> tryActivateQueuedStopOrdersThenReturnTheActivated() {
         List<Order> activatedOrders = new LinkedList<>();
         for (Order order : this.orderBook.getBuyQueue()) {
-            boolean hasActivated = activateIfPossible(order);
-            if (hasActivated) activatedOrders.add(order);
+            if (order instanceof StopOrder stopOrder
+                    && tryActivateStopOrder(stopOrder)) {
+                activatedOrders.add(stopOrder);
+            }
         }
         return activatedOrders;
     }
