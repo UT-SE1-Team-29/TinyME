@@ -1,6 +1,8 @@
 package ir.ramtung.tinyme.domain.entity;
 
 import ir.ramtung.tinyme.domain.entity.order.Order;
+import ir.ramtung.tinyme.domain.entity.queues.Queue;
+import ir.ramtung.tinyme.domain.entity.queues.SelectiveQueue;
 import lombok.Getter;
 
 import java.util.LinkedList;
@@ -13,8 +15,8 @@ public class OrderBook {
     private final Queue sellQueue;
 
     public OrderBook() {
-        buyQueue = new Queue();
-        sellQueue = new Queue();
+        buyQueue = new SelectiveQueue();
+        sellQueue = new SelectiveQueue();
     }
 
     public void enqueue(Order order) {
@@ -30,7 +32,7 @@ public class OrderBook {
         it.add(order);
     }
 
-    private LinkedList<Order> getQueue(Side side) {
+    private Queue getQueue(Side side) {
         return side == Side.BUY ? buyQueue : sellQueue;
     }
 
@@ -64,7 +66,7 @@ public class OrderBook {
     }
 
     public void putBack(Order order) {
-        LinkedList<Order> queue = getQueue(order.getSide());
+        Queue queue = getQueue(order.getSide());
         order.queue();
         queue.addFirst(order);
     }

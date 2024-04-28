@@ -1,11 +1,11 @@
-package ir.ramtung.tinyme.domain.entity;
+package ir.ramtung.tinyme.domain.entity.queues;
 
 import ir.ramtung.tinyme.domain.entity.order.Order;
 
 import java.util.LinkedList;
 import java.util.NoSuchElementException;
 
-public class Queue extends LinkedList<Order> {
+public class SelectiveQueue extends LinkedList<Order> implements Queue {
     @Override
     public Order getFirst() {
         for (Order order : this) {
