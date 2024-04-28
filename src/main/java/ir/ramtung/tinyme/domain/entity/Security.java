@@ -11,6 +11,7 @@ import ir.ramtung.tinyme.messaging.Message;
 import lombok.Builder;
 import lombok.Getter;
 
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -34,19 +35,16 @@ public class Security {
             return MatchResult.notEnoughPositions();
         Order order = getOrder(enterOrderRq, broker, shareholder);
 
-        boolean hasActivated;
-        if (order instanceof StopOrder stopOrder) {
-            hasActivated = activateIfPossible(stopOrder);
-        } else {
-            hasActivated = false;
+        List<Order> activatedOrders = new ArrayList<>();
+        if (order instanceof StopOrder stopOrder && activateIfPossible(stopOrder)) {
+            activatedOrders.add(stopOrder);
         }
 
         MatchResult matchResult = matcher.executeWithMinimumQuantityCondition(order, enterOrderRq.getMinimumExecutionQuantity());
         updateLastTransactionPrice(matchResult);
 
-        List<Order> activatedOrders = activateQueuedOrdersIfPossibleThenGetThem();
+        activatedOrders.addAll(activateQueuedOrdersIfPossibleThenGetThem());
 
-        if (hasActivated) matchResult.addActivatedOrder(order);
         activatedOrders.forEach(matchResult::addActivatedOrder);
 
         return matchResult;
@@ -103,11 +101,9 @@ public class Security {
 
         orderBook.removeByOrderId(updateOrderRq.getSide(), updateOrderRq.getOrderId());
 
-        boolean hasActivated;
-        if (order instanceof StopOrder stopOrder) {
-            hasActivated = activateIfPossible(stopOrder);
-        } else {
-            hasActivated = false;
+        List<Order> activatedOrders = new ArrayList<>();
+        if (order instanceof StopOrder stopOrder && activateIfPossible(stopOrder)) {
+            activatedOrders.add(stopOrder);
         }
 
         MatchResult matchResult = matcher.execute(order);
@@ -118,9 +114,8 @@ public class Security {
             }
         }
         updateLastTransactionPrice(matchResult);
-        List<Order> activatedOrders = activateQueuedOrdersIfPossibleThenGetThem();
+        activatedOrders.addAll(activateQueuedOrdersIfPossibleThenGetThem());
 
-        if (hasActivated) matchResult.addActivatedOrder(order);
         activatedOrders.forEach(matchResult::addActivatedOrder);
 
         return matchResult;
