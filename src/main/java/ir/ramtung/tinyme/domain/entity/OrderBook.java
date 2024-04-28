@@ -5,7 +5,6 @@ import ir.ramtung.tinyme.domain.entity.queues.Queue;
 import ir.ramtung.tinyme.domain.entity.queues.SelectiveQueue;
 import lombok.Getter;
 
-import java.util.LinkedList;
 import java.util.List;
 import java.util.ListIterator;
 
