@@ -4,7 +4,7 @@ import ir.ramtung.tinyme.config.MockedJMSTestConfig;
 import ir.ramtung.tinyme.domain.entity.*;
 import ir.ramtung.tinyme.domain.entity.order.IcebergOrder;
 import ir.ramtung.tinyme.domain.entity.order.Order;
-import ir.ramtung.tinyme.domain.service.Matcher;
+import ir.ramtung.tinyme.domain.service.matcher.ContinuousMatcher;
 import ir.ramtung.tinyme.domain.service.OrderHandler;
 import ir.ramtung.tinyme.messaging.EventPublisher;
 import ir.ramtung.tinyme.messaging.Message;
@@ -124,7 +124,7 @@ public class OrderHandlerTest {
                 matchingBuyOrder, incomingSellOrder);
 
         EventPublisher mockEventPublisher = mock(EventPublisher.class, withSettings().verboseLogging());
-        OrderHandler myOrderHandler = new OrderHandler(securityRepository, brokerRepository, shareholderRepository, mockEventPublisher, new Matcher());
+        OrderHandler myOrderHandler = new OrderHandler(securityRepository, brokerRepository, shareholderRepository, mockEventPublisher, new ContinuousMatcher());
         myOrderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(1,
                 incomingSellOrder.getSecurity().getIsin(),
                 incomingSellOrder.getOrderId(),

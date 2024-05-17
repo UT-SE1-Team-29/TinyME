@@ -4,7 +4,7 @@ import ir.ramtung.tinyme.config.MockedJMSTestConfig;
 import ir.ramtung.tinyme.domain.entity.*;
 import ir.ramtung.tinyme.domain.entity.order.IcebergOrder;
 import ir.ramtung.tinyme.domain.entity.order.Order;
-import ir.ramtung.tinyme.domain.service.Matcher;
+import ir.ramtung.tinyme.domain.service.matcher.ContinuousMatcher;
 import ir.ramtung.tinyme.messaging.exception.InvalidRequestException;
 import ir.ramtung.tinyme.messaging.request.DeleteOrderRq;
 import ir.ramtung.tinyme.messaging.request.EnterOrderRq;
@@ -30,7 +30,7 @@ class SecurityTest {
     private Shareholder shareholder;
     private List<Order> orders;
     @Autowired
-    Matcher matcher;
+    ContinuousMatcher continuousMatcher;
 
     @BeforeEach
     void setupOrderBook() {
@@ -56,7 +56,7 @@ class SecurityTest {
     @Test
     void reducing_quantity_does_not_change_priority() {
         EnterOrderRq updateOrderRq = EnterOrderRq.createUpdateOrderRq(1, security.getIsin(), 3, LocalDateTime.now(), BUY, 440, 15450, 0, 0, 0);
-        assertThatNoException().isThrownBy(() -> security.updateOrder(updateOrderRq, matcher));
+        assertThatNoException().isThrownBy(() -> security.updateOrder(updateOrderRq, continuousMatcher));
         assertThat(security.getOrderBook().getBuyQueue().get(2).getQuantity()).isEqualTo(440);
         assertThat(security.getOrderBook().getBuyQueue().get(2).getOrderId()).isEqualTo(3);
     }
@@ -64,7 +64,7 @@ class SecurityTest {
     @Test
     void increasing_quantity_changes_priority() {
         EnterOrderRq updateOrderRq = EnterOrderRq.createUpdateOrderRq(1, security.getIsin(), 3, LocalDateTime.now(), BUY, 450, 15450, 0, 0, 0);
-        assertThatNoException().isThrownBy(() -> security.updateOrder(updateOrderRq, matcher));
+        assertThatNoException().isThrownBy(() -> security.updateOrder(updateOrderRq, continuousMatcher));
         assertThat(security.getOrderBook().getBuyQueue().get(3).getQuantity()).isEqualTo(450);
         assertThat(security.getOrderBook().getBuyQueue().get(3).getOrderId()).isEqualTo(3);
     }
@@ -72,7 +72,7 @@ class SecurityTest {
     @Test
     void changing_price_changes_priority() {
         EnterOrderRq updateOrderRq = EnterOrderRq.createUpdateOrderRq(1, security.getIsin(), 1, LocalDateTime.now(), BUY, 300, 15450, 0, 0, 0);
-        assertThatNoException().isThrownBy(() -> security.updateOrder(updateOrderRq, matcher));
+        assertThatNoException().isThrownBy(() -> security.updateOrder(updateOrderRq, continuousMatcher));
         assertThat(security.getOrderBook().getBuyQueue().get(3).getQuantity()).isEqualTo(300);
         assertThat(security.getOrderBook().getBuyQueue().get(3).getPrice()).isEqualTo(15450);
         assertThat(security.getOrderBook().getBuyQueue().get(3).getOrderId()).isEqualTo(1);
@@ -83,14 +83,14 @@ class SecurityTest {
     void changing_price_causes_trades_to_happen() {
         EnterOrderRq updateOrderRq = EnterOrderRq.createUpdateOrderRq(1, security.getIsin(), 6, LocalDateTime.now(), Side.SELL, 350, 15700, 0, 0, 0);
         assertThatNoException().isThrownBy(() ->
-                assertThat(security.updateOrder(updateOrderRq, matcher).trades()).isNotEmpty()
+                assertThat(security.updateOrder(updateOrderRq, continuousMatcher).trades()).isNotEmpty()
         );
     }
 
     @Test
     void updating_non_existing_order_fails() {
         EnterOrderRq updateOrderRq = EnterOrderRq.createUpdateOrderRq(1, security.getIsin(), 6, LocalDateTime.now(), BUY, 350, 15700, 0, 0, 0);
-        assertThatExceptionOfType(InvalidRequestException.class).isThrownBy(() -> security.updateOrder(updateOrderRq, matcher));
+        assertThatExceptionOfType(InvalidRequestException.class).isThrownBy(() -> security.updateOrder(updateOrderRq, continuousMatcher));
     }
 
     @Test
@@ -120,7 +120,7 @@ class SecurityTest {
         );
         orders.forEach(order -> security.getOrderBook().enqueue(order));
         EnterOrderRq updateOrderRq = EnterOrderRq.createUpdateOrderRq(1, security.getIsin(), 3, LocalDateTime.now(), BUY, 445, 15450, 0, 0, 150);
-        assertThatNoException().isThrownBy(() -> security.updateOrder(updateOrderRq, matcher));
+        assertThatNoException().isThrownBy(() -> security.updateOrder(updateOrderRq, continuousMatcher));
         assertThat(security.getOrderBook().getBuyQueue().get(3).getQuantity()).isEqualTo(150);
         assertThat(security.getOrderBook().getBuyQueue().get(3).getOrderId()).isEqualTo(3);
     }
@@ -138,7 +138,7 @@ class SecurityTest {
         );
         orders.forEach(order -> security.getOrderBook().enqueue(order));
         EnterOrderRq updateOrderRq = EnterOrderRq.createUpdateOrderRq(1, security.getIsin(), 3, LocalDateTime.now(), BUY, 300, 15450, 0, 0, 100);
-        assertThatNoException().isThrownBy(() -> security.updateOrder(updateOrderRq, matcher));
+        assertThatNoException().isThrownBy(() -> security.updateOrder(updateOrderRq, continuousMatcher));
         assertThat(security.getOrderBook().getBuyQueue().get(2).getOrderId()).isEqualTo(3);
     }
 
@@ -152,7 +152,7 @@ class SecurityTest {
         );
 
         EnterOrderRq updateReq = EnterOrderRq.createUpdateOrderRq(2, security.getIsin(), 1, LocalDateTime.now(), BUY, 100, 10, 0, 0, 10);
-        assertThatNoException().isThrownBy(() -> security.updateOrder(updateReq, matcher));
+        assertThatNoException().isThrownBy(() -> security.updateOrder(updateReq, continuousMatcher));
 
         assertThat(broker.getCredit()).isEqualTo(0);
         assertThat(security.getOrderBook().getBuyQueue().get(0).getOrderId()).isEqualTo(1);
@@ -166,7 +166,7 @@ class SecurityTest {
         );
 
         EnterOrderRq updateReq = EnterOrderRq.createUpdateOrderRq(2, security.getIsin(), 1, LocalDateTime.now(), BUY, 20, 10, 0, 0, 5);
-        assertThatNoException().isThrownBy(() -> security.updateOrder(updateReq, matcher));
+        assertThatNoException().isThrownBy(() -> security.updateOrder(updateReq, continuousMatcher));
 
         assertThat(security.getOrderBook().getBuyQueue().get(0).getQuantity()).isEqualTo(5);
     }
@@ -185,7 +185,7 @@ class SecurityTest {
 
         EnterOrderRq updateReq = EnterOrderRq.createUpdateOrderRq(5, security.getIsin(), 4, LocalDateTime.now(), SELL, 30, 10, 0, 0, 10);
 
-        MatchResult result = security.updateOrder(updateReq, matcher);
+        MatchResult result = security.updateOrder(updateReq, continuousMatcher);
 
         assertThat(result.outcome()).isEqualTo(MatchingOutcome.EXECUTED);
         assertThat(result.trades()).hasSize(2);

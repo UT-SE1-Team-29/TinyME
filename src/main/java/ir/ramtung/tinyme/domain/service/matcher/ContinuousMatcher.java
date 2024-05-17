@@ -1,4 +1,4 @@
-package ir.ramtung.tinyme.domain.service;
+package ir.ramtung.tinyme.domain.service.matcher;
 
 import ir.ramtung.tinyme.domain.entity.*;
 import ir.ramtung.tinyme.domain.entity.order.IcebergOrder;
@@ -10,7 +10,7 @@ import java.util.LinkedList;
 import java.util.ListIterator;
 
 @Service
-public class Matcher {
+public class ContinuousMatcher implements Matcher {
     public MatchResult match(Order newOrder) {
         OrderBook orderBook = newOrder.getSecurity().getOrderBook();
         LinkedList<Trade> trades = new LinkedList<>();
@@ -85,11 +85,13 @@ public class Matcher {
     }
 
     public MatchResult executeWithMinimumQuantityCondition(Order order, int minimumExecutionQuantity) {
-        int originalOrderQuantity = order.getTotalQuantity();
+        int originalQuantity = order.getTotalQuantity();
         MatchResult result = execute(order);
         if (order instanceof StopOrder) return result;
+        if (result.remainder() == null) return result;
 
-        if (result.remainder() != null && originalOrderQuantity - result.remainder().getTotalQuantity() < minimumExecutionQuantity) {
+        var tradedQuantity = originalQuantity - result.remainder().getTotalQuantity();
+        if (tradedQuantity < minimumExecutionQuantity) {
             rollbackTrades(order, result.trades());
             if (order.getSide() == Side.BUY) {
                 rollbackRemainder(order, result.remainder());

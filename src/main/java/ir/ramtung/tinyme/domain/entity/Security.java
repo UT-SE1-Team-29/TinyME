@@ -3,7 +3,7 @@ package ir.ramtung.tinyme.domain.entity;
 import ir.ramtung.tinyme.domain.entity.order.IcebergOrder;
 import ir.ramtung.tinyme.domain.entity.order.Order;
 import ir.ramtung.tinyme.domain.entity.order.StopOrder;
-import ir.ramtung.tinyme.domain.service.Matcher;
+import ir.ramtung.tinyme.domain.service.matcher.ContinuousMatcher;
 import ir.ramtung.tinyme.messaging.Message;
 import ir.ramtung.tinyme.messaging.exception.InvalidRequestException;
 import ir.ramtung.tinyme.messaging.request.DeleteOrderRq;
@@ -28,7 +28,7 @@ public class Security {
     @Builder.Default
     private Integer lastTransactionPrice = null;
 
-    public MatchResult newOrder(EnterOrderRq enterOrderRq, Broker broker, Shareholder shareholder, Matcher matcher) {
+    public MatchResult newOrder(EnterOrderRq enterOrderRq, Broker broker, Shareholder shareholder, ContinuousMatcher continuousMatcher) {
         if (enterOrderRq.getSide() == Side.SELL &&
                 !shareholder.hasEnoughPositionsOn(this,
                 orderBook.totalSellQuantityByShareholder(shareholder) + enterOrderRq.getQuantity())) {
@@ -41,7 +41,7 @@ public class Security {
             activatedOrders.add(stopOrder);
         }
 
-        MatchResult matchResult = matcher.executeWithMinimumQuantityCondition(order, enterOrderRq.getMinimumExecutionQuantity());
+        MatchResult matchResult = continuousMatcher.executeWithMinimumQuantityCondition(order, enterOrderRq.getMinimumExecutionQuantity());
         updateLastTransactionPrice(matchResult);
 
         activatedOrders.addAll(tryActivateQueuedStopOrdersThenReturnTheActivated());
@@ -59,7 +59,7 @@ public class Security {
         orderBook.removeByOrderId(deleteOrderRq.getSide(), deleteOrderRq.getOrderId());
     }
 
-    public MatchResult updateOrder(EnterOrderRq updateOrderRq, Matcher matcher) throws InvalidRequestException {
+    public MatchResult updateOrder(EnterOrderRq updateOrderRq, ContinuousMatcher continuousMatcher) throws InvalidRequestException {
         Order order = orderBook.findByOrderId(updateOrderRq.getSide(), updateOrderRq.getOrderId());
 
         validateUpdateOrderRequest(updateOrderRq, order);
@@ -87,7 +87,7 @@ public class Security {
             activatedOrders.add(stopOrder);
         }
 
-        MatchResult matchResult = matcher.execute(order);
+        MatchResult matchResult = continuousMatcher.execute(order);
         if (matchResult.outcome() != MatchingOutcome.EXECUTED) {
             orderBook.enqueue(originalOrder);
             if (updateOrderRq.getSide() == Side.BUY) {
