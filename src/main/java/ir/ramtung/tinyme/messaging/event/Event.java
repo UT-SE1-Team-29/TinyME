@@ -9,9 +9,9 @@ import lombok.Getter;
 
 import java.time.LocalDateTime;
 
+@Getter
 @EqualsAndHashCode
 public abstract class Event {
-    @Getter
     @JsonSerialize(using = LocalDateTimeSerializer.class)
     @JsonDeserialize(using = LocalDateTimeDeserializer.class)
     private final LocalDateTime time;
