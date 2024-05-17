@@ -11,6 +11,7 @@ import ir.ramtung.tinyme.messaging.request.EnterOrderRq;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NonNull;
+import lombok.Setter;
 
 import java.util.ArrayList;
 import java.util.LinkedList;
@@ -29,6 +30,7 @@ public class Security {
     @Builder.Default
     private Integer lastTransactionPrice = null;
     @NonNull
+    @Setter
     private Matcher matcher;
 
     public MatchResult newOrder(EnterOrderRq enterOrderRq, Broker broker, Shareholder shareholder) {

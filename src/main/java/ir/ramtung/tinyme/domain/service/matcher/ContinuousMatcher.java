@@ -11,6 +11,7 @@ import java.util.ListIterator;
 
 @Service
 public class ContinuousMatcher implements Matcher {
+    @Override
     public MatchResult match(Order newOrder) {
         OrderBook orderBook = newOrder.getSecurity().getOrderBook();
         LinkedList<Trade> trades = new LinkedList<>();
@@ -49,6 +50,7 @@ public class ContinuousMatcher implements Matcher {
         return MatchResult.executed(newOrder, trades);
     }
 
+    @Override
     public MatchResult execute(Order order) {
         if (!order.isActive()) { // inactive orders
             if (order.getSide() == Side.BUY) {
@@ -84,6 +86,7 @@ public class ContinuousMatcher implements Matcher {
         return result;
     }
 
+    @Override
     public MatchResult executeWithMinimumQuantityCondition(Order order, int minimumExecutionQuantity) {
         int originalQuantity = order.getTotalQuantity();
         MatchResult result = execute(order);
