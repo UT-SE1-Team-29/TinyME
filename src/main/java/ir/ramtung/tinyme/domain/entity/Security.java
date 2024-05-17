@@ -2,13 +2,12 @@ package ir.ramtung.tinyme.domain.entity;
 
 import ir.ramtung.tinyme.domain.entity.order.IcebergOrder;
 import ir.ramtung.tinyme.domain.entity.order.Order;
-import ir.ramtung.tinyme.domain.entity.order.Order;
 import ir.ramtung.tinyme.domain.entity.order.StopOrder;
+import ir.ramtung.tinyme.domain.service.Matcher;
+import ir.ramtung.tinyme.messaging.Message;
 import ir.ramtung.tinyme.messaging.exception.InvalidRequestException;
 import ir.ramtung.tinyme.messaging.request.DeleteOrderRq;
 import ir.ramtung.tinyme.messaging.request.EnterOrderRq;
-import ir.ramtung.tinyme.domain.service.Matcher;
-import ir.ramtung.tinyme.messaging.Message;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -125,9 +124,9 @@ public class Security {
             throw new InvalidRequestException(Message.INVALID_PEAK_SIZE);
         if (!(order instanceof IcebergOrder) && updateOrderRq.getPeakSize() != 0)
             throw new InvalidRequestException(Message.CANNOT_SPECIFY_PEAK_SIZE_FOR_A_NON_ICEBERG_ORDER);
-        if ((order instanceof Order) && order.isActive() && updateOrderRq.getStopPrice() != 0)
+        if ((order instanceof StopOrder) && order.isActive() && updateOrderRq.getStopPrice() != 0)
             throw new InvalidRequestException(Message.INVALID_STOP_PRICE);
-        if (!(order instanceof Order) && updateOrderRq.getStopPrice() != 0)
+        if (!(order instanceof StopOrder) && updateOrderRq.getStopPrice() != 0)
             throw new InvalidRequestException(Message.CANNOT_SPECIFY_STOP_PRICE_FOR_A_NON_STOP_ORDER);
     }
 
