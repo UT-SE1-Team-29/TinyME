@@ -65,39 +65,10 @@ public class Security {
             return MatchResult.notEnoughPositions();
         }
 
-        if (updateOrderRq.getSide() == Side.BUY) {
-            order.getBroker().increaseCreditBy(order.getValue());
-        }
-        Order originalOrder = order.snapshot();
-        order.updateFromRequest(updateOrderRq);
-        if (!doesLosePriority(updateOrderRq, originalOrder)) {
-            if (updateOrderRq.getSide() == Side.BUY) {
-                order.getBroker().decreaseCreditBy(order.getValue());
-            }
-            return MatchResult.executed(null, List.of());
-        }
-
-        order.markAsNew();
-        orderBook.removeByOrderId(updateOrderRq.getSide(), updateOrderRq.getOrderId());
-
-        List<Order> activatedOrders = new ArrayList<>();
-        if (order instanceof StopOrder stopOrder && tryActivateStopOrder(stopOrder)) {
-            activatedOrders.add(stopOrder);
-        }
-
-        MatchResult matchResult = matcher.execute(order);
-        if (matchResult.outcome() != MatchingOutcome.EXECUTED) {
-            orderBook.enqueue(originalOrder);
-            if (updateOrderRq.getSide() == Side.BUY) {
-                originalOrder.getBroker().decreaseCreditBy(originalOrder.getValue());
-            }
-        }
-        updateLastTransactionPrice(matchResult);
-        activatedOrders.addAll(tryActivateQueuedStopOrdersThenReturnTheActivated());
-
-        activatedOrders.forEach(matchResult::addActivatedOrder);
-
-        return matchResult;
+        return switch (matchingState()) {
+            case CONTINUOUS -> handleUpdatedOrderByContinuousStrategy(updateOrderRq, order);
+            case AUCTION -> handleUpdatedOrderByAuctionStrategy(updateOrderRq, order);
+        };
     }
 
     private boolean doesLosePriority(EnterOrderRq updateOrderRq, Order originalOrder) {
@@ -183,7 +154,7 @@ public class Security {
 
     private MatchResult handleNewOrderByAuctionStrategy(Order order) {
         orderBook.enqueue(order);
-        return MatchResult.executed(order, new ArrayList<>());
+        return MatchResult.executed(null, List.of());
     }
 
     private MatchResult handleNewOrderByContinuousStrategy(Order order, EnterOrderRq enterOrderRq) {
@@ -199,5 +170,48 @@ public class Security {
         activatedOrders.addAll(tryActivateQueuedStopOrdersThenReturnTheActivated());
         activatedOrders.forEach(matchResult::addActivatedOrder);
         return matchResult;
+    }
+
+    private MatchResult handleUpdatedOrderByContinuousStrategy(EnterOrderRq updateOrderRq, Order order) {
+        if (updateOrderRq.getSide() == Side.BUY) {
+            order.getBroker().increaseCreditBy(order.getValue());
+        }
+        Order originalOrder = order.snapshot();
+        order.updateFromRequest(updateOrderRq);
+        if (!doesLosePriority(updateOrderRq, originalOrder)) {
+            if (updateOrderRq.getSide() == Side.BUY) {
+                order.getBroker().decreaseCreditBy(order.getValue());
+            }
+            return MatchResult.executed(null, List.of());
+        }
+
+        order.markAsNew();
+        orderBook.removeByOrderId(updateOrderRq.getSide(), updateOrderRq.getOrderId());
+
+        List<Order> activatedOrders = new ArrayList<>();
+        if (order instanceof StopOrder stopOrder && tryActivateStopOrder(stopOrder)) {
+            activatedOrders.add(stopOrder);
+        }
+
+        MatchResult matchResult = matcher.execute(order);
+        if (matchResult.outcome() != MatchingOutcome.EXECUTED) {
+            orderBook.enqueue(originalOrder);
+            if (updateOrderRq.getSide() == Side.BUY) {
+                originalOrder.getBroker().decreaseCreditBy(originalOrder.getValue());
+            }
+        }
+        updateLastTransactionPrice(matchResult);
+        activatedOrders.addAll(tryActivateQueuedStopOrdersThenReturnTheActivated());
+
+        activatedOrders.forEach(matchResult::addActivatedOrder);
+
+        return matchResult;
+    }
+
+    private MatchResult handleUpdatedOrderByAuctionStrategy(EnterOrderRq updateOrderRq, Order order) {
+        orderBook.removeByOrderId(updateOrderRq.getSide(), updateOrderRq.getOrderId());
+        order.updateFromRequest(updateOrderRq);
+        orderBook.enqueue(order);
+        return MatchResult.executed(null, List.of());
     }
 }
