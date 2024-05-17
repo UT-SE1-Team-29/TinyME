@@ -5,6 +5,7 @@ import ir.ramtung.tinyme.domain.entity.Broker;
 import ir.ramtung.tinyme.domain.entity.Security;
 import ir.ramtung.tinyme.domain.entity.Shareholder;
 import ir.ramtung.tinyme.domain.entity.Side;
+import ir.ramtung.tinyme.domain.entity.order.StopOrder;
 import ir.ramtung.tinyme.domain.service.OrderHandler;
 import ir.ramtung.tinyme.domain.service.SecurityConfigurationHandler;
 import ir.ramtung.tinyme.domain.service.matcher.AuctionMatcher;
@@ -287,6 +288,41 @@ public class AuctionMatchingTest {
         assertThat(broker3.getCredit()).isEqualTo(1_000_000L + 15*1290);
         assertThat(security.getOrderBook().findByOrderId(Side.BUY, 1).getQuantity()).isEqualTo(5);
         assertThat(security.getOrderBook().findByOrderId(Side.BUY, 1).getTotalQuantity()).isEqualTo(15);
+    }
+
+    @Test
+    void last_transaction_price_must_be_updated_after_auction() {
+        security.getOrderBook().setLastTransactionPrice(1000);
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(1, security.getIsin(), 1, LocalDateTime.now(),
+                Side.BUY, 80, 1300, broker1.getBrokerId(), shareholder.getShareholderId(), 0));
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(2, security.getIsin(), 2, LocalDateTime.now(),
+                Side.SELL, 50, 1250, broker2.getBrokerId(), shareholder.getShareholderId(), 0));
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(3, security.getIsin(), 3, LocalDateTime.now(),
+                Side.SELL, 15, 1290, broker3.getBrokerId(), shareholder.getShareholderId(), 0));
+
+        securityConfigurationHandler.handleMatchingStateRq(new ChangeMatchingStateRq(5, LocalDateTime.now(), security.getIsin(), MatchingState.AUCTION));
+
+        assertThat(security.getOrderBook().getLastTransactionPrice()).isEqualTo(1290);
+    }
+
+    @Test
+    void stop_order_must_be_activated_after_auction() {
+        security.getOrderBook().enqueue(
+                new StopOrder(0, security, Side.BUY, 40, 1400, broker3, shareholder, LocalDateTime.now(), 1200)
+        );
+        assertThat(security.getOrderBook().findByOrderId(Side.BUY, 0).isActive()).isEqualTo(false);
+
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(1, security.getIsin(), 1, LocalDateTime.now(),
+                Side.BUY, 80, 1300, broker1.getBrokerId(), shareholder.getShareholderId(), 0));
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(2, security.getIsin(), 2, LocalDateTime.now(),
+                Side.SELL, 50, 1250, broker2.getBrokerId(), shareholder.getShareholderId(), 0));
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(3, security.getIsin(), 3, LocalDateTime.now(),
+                Side.SELL, 15, 1290, broker3.getBrokerId(), shareholder.getShareholderId(), 0));
+
+        securityConfigurationHandler.handleMatchingStateRq(new ChangeMatchingStateRq(5, LocalDateTime.now(), security.getIsin(), MatchingState.AUCTION));
+
+        assertThat(security.getOrderBook().findByOrderId(Side.BUY, 0).isActive()).isEqualTo(true);
+        verify(eventPublisher).publish(any(OrderActivatedEvent.class));
     }
 }
 
