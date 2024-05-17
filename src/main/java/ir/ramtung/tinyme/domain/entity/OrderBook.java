@@ -6,6 +6,8 @@ import ir.ramtung.tinyme.domain.entity.queues.SelectiveQueue;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.ListIterator;
 
@@ -98,8 +100,45 @@ public class OrderBook {
                 .sum();
     }
 
-    public int calculateOpeningPrice() {
-        // todo: here lies our opening price discovery algorithm
-        return lastTransactionPrice;
+    /**
+     * returns null if any of the sell queue or buy queue are empty
+      */
+    public Integer calculateOpeningPrice() {
+        if (buyQueue.isEmpty() || sellQueue.isEmpty()) {
+            return null;
+        }
+        int minBuyPrice = buyQueue.stream().min(Comparator.comparingInt(Order::getPrice)).map(Order::getPrice).get();
+        int minSellPrice = sellQueue.stream().min(Comparator.comparingInt(Order::getPrice)).map(Order::getPrice).get();
+        int maxBuyPrice = buyQueue.stream().max(Comparator.comparingInt(Order::getPrice)).map(Order::getPrice).get();
+        int maxSellPrice = sellQueue.stream().max(Comparator.comparingInt(Order::getPrice)).map(Order::getPrice).get();
+        int minPrice = Math.min(minBuyPrice, minSellPrice);
+        int maxPrice = Math.max(maxBuyPrice, maxSellPrice);
+
+        List<Integer> candidateList = new ArrayList<>();
+        int maxTradedQuantity = 0;
+        for(int price = minPrice; price <= maxPrice; price++) {
+            int candidatePrice = price;
+            int buyQuantity = (int) buyQueue.stream().filter(order -> order.getPrice() >= candidatePrice).count();
+            int sellQuantity = (int) sellQueue.stream().filter(order -> order.getPrice() <= candidatePrice).count();
+            int tradedQuantity = Math.min(buyQuantity, sellQuantity);
+            if (tradedQuantity > maxTradedQuantity) {
+                maxTradedQuantity = tradedQuantity;
+                candidateList.clear();
+            } else if (tradedQuantity == maxTradedQuantity) {
+                candidateList.add(candidatePrice);
+            } else {
+                continue; // do nothing
+            }
+        }
+
+        if (candidateList.isEmpty()) {
+            return null;
+        }
+        if (lastTransactionPrice == null) {
+            return candidateList.get(0);
+        }
+        return candidateList.stream()
+                .min((o1, o2) -> Math.abs(o1 - lastTransactionPrice) - Math.abs(o2 - lastTransactionPrice))
+                .get();
     }
 }

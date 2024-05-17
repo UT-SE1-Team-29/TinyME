@@ -130,5 +130,23 @@ public class AuctionMatchingTest {
         assertThat(security.getOrderBook().getBuyQueue().size()).isEqualTo(1);
         assertThat(security.getOrderBook().getSellQueue().size()).isEqualTo(1);
     }
+
+    @Test
+    void opening_price_must_be_right() {
+        security.getOrderBook().setLastTransactionPrice(1430);
+        broker1.increaseCreditBy(100_000L);
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(1, security.getIsin(), 1, LocalDateTime.now(),
+                Side.BUY, 60, 1300, broker1.getBrokerId(), shareholder.getShareholderId(), 0));
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(2, security.getIsin(), 2, LocalDateTime.now(),
+                Side.SELL, 50, 1400, broker1.getBrokerId(), shareholder.getShareholderId(), 0));
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(3, security.getIsin(), 3, LocalDateTime.now(),
+                Side.SELL, 20, 1500, broker1.getBrokerId(), shareholder.getShareholderId(), 0));
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(4, security.getIsin(), 4, LocalDateTime.now(),
+                Side.BUY, 12, 1450, broker1.getBrokerId(), shareholder.getShareholderId(), 0));
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(5, security.getIsin(), 5, LocalDateTime.now(),
+                Side.SELL, 60, 1420, broker1.getBrokerId(), shareholder.getShareholderId(), 0));
+
+        assertThat(security.getOrderBook().calculateOpeningPrice()).isEqualTo(1430);
+    }
 }
 
