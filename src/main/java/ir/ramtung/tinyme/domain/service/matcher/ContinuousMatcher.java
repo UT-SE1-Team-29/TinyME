@@ -10,7 +10,6 @@ import java.util.LinkedList;
 
 @Service
 public class ContinuousMatcher implements Matcher {
-    @Override
     public MatchResult match(Order newOrder) {
         OrderBook orderBook = newOrder.getSecurity().getOrderBook();
         LinkedList<Trade> trades = new LinkedList<>();
@@ -49,17 +48,9 @@ public class ContinuousMatcher implements Matcher {
         return MatchResult.executed(newOrder, trades);
     }
 
-    @Override
     public MatchResult execute(Order order) {
         if (!order.isActive()) { // inactive orders
-            if (order.getSide() == Side.BUY) {
-                if (!order.getBroker().hasEnoughCredit(order.getValue())) {
-                    return MatchResult.notEnoughCredit();
-                }
-                order.getBroker().decreaseCreditBy(order.getValue());
-            }
-            order.getSecurity().getOrderBook().enqueue(order);
-            return MatchResult.executed(order, new LinkedList<>());
+            return executeWithoutMatching(order);
         }
 
         MatchResult result = match(order);

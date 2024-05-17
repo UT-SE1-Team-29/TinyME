@@ -9,9 +9,16 @@ import java.util.LinkedList;
 import java.util.ListIterator;
 
 public interface Matcher {
-    MatchResult match(Order newOrder);
-    MatchResult execute(Order order);
-
+    default MatchResult executeWithoutMatching(Order order) {
+        if (order.getSide() == Side.BUY) {
+            if (!order.getBroker().hasEnoughCredit(order.getValue())) {
+                return MatchResult.notEnoughCredit();
+            }
+            order.getBroker().decreaseCreditBy(order.getValue());
+        }
+        order.getSecurity().getOrderBook().enqueue(order);
+        return MatchResult.executed(order, new LinkedList<>());
+    }
     static void rollbackTrades(Order newOrder, LinkedList<Trade> trades) {
         switch (newOrder.getSide()) {
             case BUY -> rollbackTradesForBuyOrders(newOrder, trades);

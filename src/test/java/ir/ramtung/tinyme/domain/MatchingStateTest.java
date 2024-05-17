@@ -16,6 +16,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.annotation.DirtiesContext;
 
+import java.time.LocalDateTime;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
@@ -40,6 +42,8 @@ public class MatchingStateTest {
         var security = Security.builder().matcher(continuousMatcher).isin("ABC").build();
         securityRepository.addSecurity(security);
         securityConfigurationHandler.handleMatchingStateRq(new ChangeMatchingStateRq(
+                1,
+                LocalDateTime.now(),
                 "ABC",
                 MatchingState.AUCTION));
         assertThat(security.getMatcher()).isEqualTo(auctionMatcher);

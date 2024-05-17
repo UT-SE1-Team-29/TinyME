@@ -65,10 +65,26 @@ public class Security {
             return MatchResult.notEnoughPositions();
         }
 
+        if (updateOrderRq.getSide() == Side.BUY) {
+            order.getBroker().increaseCreditBy(order.getValue());
+        }
+
         return switch (matchingState()) {
             case CONTINUOUS -> handleUpdatedOrderByContinuousStrategy(updateOrderRq, order);
             case AUCTION -> handleUpdatedOrderByAuctionStrategy(updateOrderRq, order);
         };
+    }
+
+    public MatchResult executeAuction() {
+        assert matchingState() == MatchingState.AUCTION;
+        var auctionMatcher = (AuctionMatcher) matcher;
+        var matchResult = auctionMatcher.execute(this);
+
+        updateLastTransactionPrice(matchResult);
+
+        var activatedOrders = tryActivateQueuedStopOrdersThenReturnTheActivated();
+        activatedOrders.forEach(matchResult::addActivatedOrder);
+        return matchResult;
     }
 
     public MatchingState matchingState() {
@@ -157,8 +173,7 @@ public class Security {
     }
 
     private MatchResult handleNewOrderByAuctionStrategy(Order order) {
-        orderBook.enqueue(order);
-        return MatchResult.executed(null, List.of());
+        return matcher.executeWithoutMatching(order);
     }
 
     private MatchResult handleNewOrderByContinuousStrategy(Order order, EnterOrderRq enterOrderRq) {
@@ -177,9 +192,9 @@ public class Security {
     }
 
     private MatchResult handleUpdatedOrderByContinuousStrategy(EnterOrderRq updateOrderRq, Order order) {
-        if (updateOrderRq.getSide() == Side.BUY) {
-            order.getBroker().increaseCreditBy(order.getValue());
-        }
+        assert matcher instanceof ContinuousMatcher;
+        var continuousMatcher = (ContinuousMatcher) matcher;
+
         Order originalOrder = order.snapshot();
         order.updateFromRequest(updateOrderRq);
         if (!doesLosePriority(updateOrderRq, originalOrder)) {
@@ -197,7 +212,7 @@ public class Security {
             activatedOrders.add(stopOrder);
         }
 
-        MatchResult matchResult = matcher.execute(order);
+        MatchResult matchResult = continuousMatcher.execute(order);
         if (matchResult.outcome() != MatchingOutcome.EXECUTED) {
             orderBook.enqueue(originalOrder);
             if (updateOrderRq.getSide() == Side.BUY) {
@@ -215,7 +230,6 @@ public class Security {
     private MatchResult handleUpdatedOrderByAuctionStrategy(EnterOrderRq updateOrderRq, Order order) {
         orderBook.removeByOrderId(updateOrderRq.getSide(), updateOrderRq.getOrderId());
         order.updateFromRequest(updateOrderRq);
-        orderBook.enqueue(order);
-        return MatchResult.executed(null, List.of());
+        return matcher.executeWithoutMatching(order);
     }
 }

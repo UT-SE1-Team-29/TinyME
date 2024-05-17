@@ -6,10 +6,7 @@ import ir.ramtung.tinyme.messaging.Message;
 import ir.ramtung.tinyme.messaging.TradeDTO;
 import ir.ramtung.tinyme.messaging.event.*;
 import ir.ramtung.tinyme.messaging.exception.InvalidRequestException;
-import ir.ramtung.tinyme.messaging.request.DeleteOrderRq;
-import ir.ramtung.tinyme.messaging.request.EnterOrderRq;
-import ir.ramtung.tinyme.messaging.request.MatchingState;
-import ir.ramtung.tinyme.messaging.request.OrderEntryType;
+import ir.ramtung.tinyme.messaging.request.*;
 import ir.ramtung.tinyme.repository.BrokerRepository;
 import ir.ramtung.tinyme.repository.SecurityRepository;
 import ir.ramtung.tinyme.repository.ShareholderRepository;
@@ -90,6 +87,28 @@ public class OrderHandler {
         } catch (InvalidRequestException ex) {
             eventPublisher.publish(new OrderRejectedEvent(deleteOrderRq.getRequestId(), deleteOrderRq.getOrderId(), ex.getReasons()));
         }
+    }
+
+    public void handleAuctionOpening(ChangeMatchingStateRq changeMatchingStateRq) {
+        var security = securityRepository.findSecurityByIsin(changeMatchingStateRq.getSecurityIsin());
+        assert security.matchingState() == MatchingState.AUCTION;
+        MatchResult matchResult = security.executeAuction();
+
+        if (matchResult.trades().isEmpty()) {
+            eventPublisher.publish(new OrderRejectedEvent());
+        } else {
+            eventPublisher.publish(new OrderExecutedEvent());
+        }
+
+        matchResult.trades().forEach(trade -> eventPublisher.publish(new TradeEvent(
+                security.getIsin(),
+                trade.getPrice(),
+                trade.getQuantity(),
+                trade.getBuy().getOrderId(),
+                trade.getSell().getOrderId())));
+        matchResult.activatedOrders().forEach(activatedOrder ->
+                eventPublisher.publish(new OrderActivatedEvent(activatedOrder.getOrderId(), changeMatchingStateRq.getRequestId()))
+        );
     }
 
     private void validateEnterOrderRq(EnterOrderRq enterOrderRq) throws InvalidRequestException {
