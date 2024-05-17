@@ -56,6 +56,10 @@ public class OrderHandler {
                 eventPublisher.publish(new OrderRejectedEvent(enterOrderRq.getRequestId(), enterOrderRq.getOrderId(), List.of(Message.MINIMUM_EXECUTION_QUANTITY_FAILED)));
                 return;
             }
+            if (matchResult.outcome() == MatchingOutcome.MINIMUM_QUANTITY_CONDITION_FOR_AUCTION_MODE) {
+                eventPublisher.publish(new OrderRejectedEvent(enterOrderRq.getRequestId(), enterOrderRq.getOrderId(), List.of(Message.INVALID_MINIMUM_EXECUTION_QUANTITY_FOR_AUCTION_MODE)));
+                return;
+            }
             if (enterOrderRq.getRequestType() == OrderEntryType.NEW_ORDER)
                 eventPublisher.publish(new OrderAcceptedEvent(enterOrderRq.getRequestId(), enterOrderRq.getOrderId()));
             else

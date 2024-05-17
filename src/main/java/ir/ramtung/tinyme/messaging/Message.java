@@ -19,5 +19,6 @@ public class Message {
     public static final String INVALID_MINIMUM_EXECUTION_QUANTITY = "Minimum execution quantity is invalid";
     public static final String MINIMUM_EXECUTION_QUANTITY_FAILED = "Minimum execution quantity condition has not been met";
     public static final String INVALID_MINIMUM_EXECUTION_QUANTITY_FOR_STOP_ORDERS = "Stop orders don't accept minimum execution quantity";
+    public static final String INVALID_MINIMUM_EXECUTION_QUANTITY_FOR_AUCTION_MODE = "Auction mode doesn't accept minimum execution quantity";
     public static final String INVALID_PEAK_SIZE_FOR_STOP_ORDERS = "Stop orders can not be iceberg order as well";
 }

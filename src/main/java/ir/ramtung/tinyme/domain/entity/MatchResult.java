@@ -31,6 +31,10 @@ public final class MatchResult {
         return new MatchResult(MatchingOutcome.MINIMUM_QUANTITY_CONDITION_FAILED, null, new LinkedList<>());
     }
 
+    public static MatchResult minimumQuantityConditionForAuctionMode() {
+        return new MatchResult(MatchingOutcome.MINIMUM_QUANTITY_CONDITION_FOR_AUCTION_MODE, null, new LinkedList<>());
+    }
+
     private MatchResult(MatchingOutcome outcome, Order remainder, LinkedList<Trade> trades) {
         this.outcome = outcome;
         this.remainder = remainder;

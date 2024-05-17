@@ -10,6 +10,7 @@ import ir.ramtung.tinyme.domain.service.OrderHandler;
 import ir.ramtung.tinyme.domain.service.SecurityConfigurationHandler;
 import ir.ramtung.tinyme.domain.service.matcher.AuctionMatcher;
 import ir.ramtung.tinyme.messaging.EventPublisher;
+import ir.ramtung.tinyme.messaging.Message;
 import ir.ramtung.tinyme.messaging.event.*;
 import ir.ramtung.tinyme.messaging.request.ChangeMatchingStateRq;
 import ir.ramtung.tinyme.messaging.request.DeleteOrderRq;
@@ -21,6 +22,7 @@ import ir.ramtung.tinyme.repository.ShareholderRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
@@ -323,6 +325,38 @@ public class AuctionMatchingTest {
 
         assertThat(security.getOrderBook().findByOrderId(Side.BUY, 0).isActive()).isEqualTo(true);
         verify(eventPublisher).publish(any(OrderActivatedEvent.class));
+    }
+
+    @Test
+    void minimum_quantity_condition_not_accepted_on_auction_mode() {
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(1, security.getIsin(), 1, LocalDateTime.now(),
+                Side.BUY, 80, 1300, broker1.getBrokerId(), shareholder.getShareholderId(), 0, 10));
+
+        ArgumentCaptor<OrderRejectedEvent> arg = ArgumentCaptor.forClass(OrderRejectedEvent.class);
+        verify(eventPublisher).publish(arg.capture());
+        assertThat(arg.getValue().getErrors()).containsOnly(Message.INVALID_MINIMUM_EXECUTION_QUANTITY_FOR_AUCTION_MODE);
+    }
+
+    @Test
+    void after_auction_execution_iceberg_order_behaves_normally() {
+        security.getOrderBook().setLastTransactionPrice(1000);
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(1, security.getIsin(), 1, LocalDateTime.now(),
+                Side.BUY, 80, 1300, broker1.getBrokerId(), shareholder.getShareholderId(), 5));
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(2, security.getIsin(), 2, LocalDateTime.now(),
+                Side.SELL, 50, 1250, broker2.getBrokerId(), shareholder.getShareholderId(), 0));
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(3, security.getIsin(), 3, LocalDateTime.now(),
+                Side.SELL, 15, 1290, broker3.getBrokerId(), shareholder.getShareholderId(), 0));
+
+        securityConfigurationHandler.handleMatchingStateRq(new ChangeMatchingStateRq(4, LocalDateTime.now(), security.getIsin(), MatchingState.CONTINUOUS));
+
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(5, security.getIsin(), 4, LocalDateTime.now(),
+                Side.SELL, 15, 1295, broker3.getBrokerId(), shareholder.getShareholderId(), 0));
+
+        ArgumentCaptor<OrderExecutedEvent> arg = ArgumentCaptor.forClass(OrderExecutedEvent.class);
+        verify(eventPublisher, times(2)).publish(arg.capture());
+
+        assertThat(arg.getValue().getTrades().size()).isEqualTo(3);
+        assertThat(broker1.getCredit()).isEqualTo(1_000_000L - 65*1290 - 15*1300);
     }
 }
 

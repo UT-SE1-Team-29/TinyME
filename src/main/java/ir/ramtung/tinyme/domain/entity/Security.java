@@ -44,7 +44,7 @@ public class Security {
 
         return switch (matchingState()) {
             case CONTINUOUS -> handleNewOrderByContinuousStrategy(order, enterOrderRq);
-            case AUCTION -> handleNewOrderByAuctionStrategy(order);
+            case AUCTION -> handleNewOrderByAuctionStrategy(order, enterOrderRq);
         };
     }
 
@@ -172,7 +172,10 @@ public class Security {
         return activatedOrders;
     }
 
-    private MatchResult handleNewOrderByAuctionStrategy(Order order) {
+    private MatchResult handleNewOrderByAuctionStrategy(Order order, EnterOrderRq enterOrderRq) {
+        if (enterOrderRq.getMinimumExecutionQuantity() != 0) {
+            return MatchResult.minimumQuantityConditionForAuctionMode();
+        }
         return matcher.executeWithoutMatching(order);
     }
 
