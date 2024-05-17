@@ -10,7 +10,6 @@ import java.time.LocalDateTime;
 @EqualsAndHashCode(callSuper = false)
 public class EnterOrderRq extends Request {
     private OrderEntryType requestType;
-    private long requestId;
     private String securityIsin;
     private long orderId;
     private Side side;
@@ -23,9 +22,8 @@ public class EnterOrderRq extends Request {
     private int stopPrice;
 
     private EnterOrderRq(OrderEntryType orderEntryType, long requestId, String securityIsin, long orderId, LocalDateTime entryTime, Side side, int quantity, int price, long brokerId, long shareholderId, int peakSize, int minimumExecutionQuantity, int stopPrice) {
-        super(entryTime);
+        super(requestId, entryTime);
         this.requestType = orderEntryType;
-        this.requestId = requestId;
         this.securityIsin = securityIsin;
         this.orderId = orderId;
         this.side = side;

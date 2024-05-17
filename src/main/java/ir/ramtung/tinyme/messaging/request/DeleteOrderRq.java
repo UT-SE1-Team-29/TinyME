@@ -9,14 +9,12 @@ import java.time.LocalDateTime;
 @EqualsAndHashCode(callSuper = false)
 @Data
 public class DeleteOrderRq extends Request {
-    private long requestId;
     private String securityIsin;
     private Side side;
     private long orderId;
 
     public DeleteOrderRq(long requestId, String securityIsin, Side side, long orderId, LocalDateTime entryTime) {
-        super(entryTime);
-        this.requestId = requestId;
+        super(requestId, entryTime);
         this.securityIsin = securityIsin;
         this.side = side;
         this.orderId = orderId;
