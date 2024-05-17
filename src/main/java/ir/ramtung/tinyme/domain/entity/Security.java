@@ -3,6 +3,7 @@ package ir.ramtung.tinyme.domain.entity;
 import ir.ramtung.tinyme.domain.entity.order.IcebergOrder;
 import ir.ramtung.tinyme.domain.entity.order.Order;
 import ir.ramtung.tinyme.domain.entity.order.StopOrder;
+import ir.ramtung.tinyme.domain.service.matcher.ContinuousMatcher;
 import ir.ramtung.tinyme.domain.service.matcher.Matcher;
 import ir.ramtung.tinyme.messaging.Message;
 import ir.ramtung.tinyme.messaging.exception.InvalidRequestException;
@@ -46,7 +47,10 @@ public class Security {
             activatedOrders.add(stopOrder);
         }
 
-        MatchResult matchResult = matcher.executeWithMinimumQuantityCondition(order, enterOrderRq.getMinimumExecutionQuantity());
+        MatchResult matchResult =
+            matcher instanceof ContinuousMatcher continuousMatcher ? continuousMatcher.executeWithMinimumQuantityCondition(order, enterOrderRq.getMinimumExecutionQuantity())
+                    : matcher.execute(order);
+
         updateLastTransactionPrice(matchResult);
 
         activatedOrders.addAll(tryActivateQueuedStopOrdersThenReturnTheActivated());

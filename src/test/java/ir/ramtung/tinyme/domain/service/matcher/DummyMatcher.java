@@ -13,9 +13,4 @@ public class DummyMatcher implements Matcher {
     public MatchResult execute(Order order) {
         return null;
     }
-
-    @Override
-    public MatchResult executeWithMinimumQuantityCondition(Order order, int minimumExecutionQuantity) {
-        return null;
-    }
 }

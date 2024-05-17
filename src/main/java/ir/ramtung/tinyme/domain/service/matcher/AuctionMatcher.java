@@ -17,8 +17,4 @@ public class AuctionMatcher implements Matcher {
         return null;
     }
 
-    @Override
-    public MatchResult executeWithMinimumQuantityCondition(Order order, int minimumExecutionQuantity) {
-        return null;
-    }
 }
