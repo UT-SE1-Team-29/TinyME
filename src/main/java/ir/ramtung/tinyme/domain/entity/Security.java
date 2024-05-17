@@ -28,8 +28,6 @@ public class Security {
     private int lotSize = 1;
     @Builder.Default
     private OrderBook orderBook = new OrderBook();
-    @Builder.Default
-    private Integer lastTransactionPrice = null;
     @NonNull
     @Setter
     private Matcher matcher;
@@ -154,13 +152,15 @@ public class Security {
 
     private void updateLastTransactionPrice(MatchResult result) {
         if (!result.trades().isEmpty())
-            lastTransactionPrice = result.trades().getLast().getPrice();
+            orderBook.setLastTransactionPrice(result.trades().getLast().getPrice());
     }
 
     /**
      * @return true if activation happens and false otherwise
      */
     private boolean tryActivateStopOrder(StopOrder order) {
+        var lastTransactionPrice = orderBook.getLastTransactionPrice();
+
         if (lastTransactionPrice == null) return false;
         if (order.isActive()) return false;
 

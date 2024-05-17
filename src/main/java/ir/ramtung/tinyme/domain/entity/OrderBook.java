@@ -4,14 +4,17 @@ import ir.ramtung.tinyme.domain.entity.order.Order;
 import ir.ramtung.tinyme.domain.entity.queues.Queue;
 import ir.ramtung.tinyme.domain.entity.queues.SelectiveQueue;
 import lombok.Getter;
+import lombok.Setter;
 
 import java.util.List;
 import java.util.ListIterator;
 
 @Getter
+@Setter
 public class OrderBook {
     private final Queue buyQueue;
     private final Queue sellQueue;
+    private Integer lastTransactionPrice = null;
 
     public OrderBook() {
         buyQueue = new SelectiveQueue();
@@ -93,5 +96,10 @@ public class OrderBook {
                 .filter(order -> order.getShareholder().equals(shareholder))
                 .mapToInt(Order::getTotalQuantity)
                 .sum();
+    }
+
+    public int calculateOpeningPrice() {
+        // todo: here lies our opening price discovery algorithm
+        return lastTransactionPrice;
     }
 }
