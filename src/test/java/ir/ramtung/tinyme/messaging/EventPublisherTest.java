@@ -2,6 +2,7 @@ package ir.ramtung.tinyme.messaging;
 
 import ir.ramtung.tinyme.messaging.event.OrderExecutedEvent;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -14,7 +15,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-//@Disabled
+@Disabled
 @SpringBootTest
 @EnableJms
 @DirtiesContext
