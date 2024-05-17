@@ -33,7 +33,7 @@ public class MatcherTest {
 
     @BeforeEach
     void setupOrderBook() {
-        security = Security.builder().build();
+        security = Security.builder().matcher(continuousMatcher).build();
         broker = Broker.builder().credit(100_000_000L).build();
         shareholder = Shareholder.builder().build();
         shareholder.incPosition(security, 100_000);
@@ -111,7 +111,7 @@ public class MatcherTest {
 
     @Test
     void iceberg_order_in_queue_matched_completely_after_three_rounds() {
-        security = Security.builder().build();
+        security = Security.builder().matcher(continuousMatcher).build();
         broker = Broker.builder().build();
         orderBook = security.getOrderBook();
         orders = Arrays.asList(
@@ -136,7 +136,7 @@ public class MatcherTest {
 
     @Test
     void insert_iceberg_and_match_until_quantity_is_less_than_peak_size() {
-        security = Security.builder().isin("TEST").build();
+        security = Security.builder().matcher(continuousMatcher).isin("TEST").build();
         shareholder.incPosition(security, 1_000);
         security.getOrderBook().enqueue(
                 new Order(1, security, Side.SELL, 100, 10, broker, shareholder)

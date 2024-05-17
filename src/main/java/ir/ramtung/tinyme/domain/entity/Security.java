@@ -3,13 +3,14 @@ package ir.ramtung.tinyme.domain.entity;
 import ir.ramtung.tinyme.domain.entity.order.IcebergOrder;
 import ir.ramtung.tinyme.domain.entity.order.Order;
 import ir.ramtung.tinyme.domain.entity.order.StopOrder;
-import ir.ramtung.tinyme.domain.service.matcher.ContinuousMatcher;
+import ir.ramtung.tinyme.domain.service.matcher.Matcher;
 import ir.ramtung.tinyme.messaging.Message;
 import ir.ramtung.tinyme.messaging.exception.InvalidRequestException;
 import ir.ramtung.tinyme.messaging.request.DeleteOrderRq;
 import ir.ramtung.tinyme.messaging.request.EnterOrderRq;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.NonNull;
 
 import java.util.ArrayList;
 import java.util.LinkedList;
@@ -27,8 +28,10 @@ public class Security {
     private OrderBook orderBook = new OrderBook();
     @Builder.Default
     private Integer lastTransactionPrice = null;
+    @NonNull
+    private Matcher matcher;
 
-    public MatchResult newOrder(EnterOrderRq enterOrderRq, Broker broker, Shareholder shareholder, ContinuousMatcher continuousMatcher) {
+    public MatchResult newOrder(EnterOrderRq enterOrderRq, Broker broker, Shareholder shareholder) {
         if (enterOrderRq.getSide() == Side.SELL &&
                 !shareholder.hasEnoughPositionsOn(this,
                 orderBook.totalSellQuantityByShareholder(shareholder) + enterOrderRq.getQuantity())) {
@@ -41,7 +44,7 @@ public class Security {
             activatedOrders.add(stopOrder);
         }
 
-        MatchResult matchResult = continuousMatcher.executeWithMinimumQuantityCondition(order, enterOrderRq.getMinimumExecutionQuantity());
+        MatchResult matchResult = matcher.executeWithMinimumQuantityCondition(order, enterOrderRq.getMinimumExecutionQuantity());
         updateLastTransactionPrice(matchResult);
 
         activatedOrders.addAll(tryActivateQueuedStopOrdersThenReturnTheActivated());
@@ -59,7 +62,7 @@ public class Security {
         orderBook.removeByOrderId(deleteOrderRq.getSide(), deleteOrderRq.getOrderId());
     }
 
-    public MatchResult updateOrder(EnterOrderRq updateOrderRq, ContinuousMatcher continuousMatcher) throws InvalidRequestException {
+    public MatchResult updateOrder(EnterOrderRq updateOrderRq) throws InvalidRequestException {
         Order order = orderBook.findByOrderId(updateOrderRq.getSide(), updateOrderRq.getOrderId());
 
         validateUpdateOrderRequest(updateOrderRq, order);
@@ -87,7 +90,7 @@ public class Security {
             activatedOrders.add(stopOrder);
         }
 
-        MatchResult matchResult = continuousMatcher.execute(order);
+        MatchResult matchResult = matcher.execute(order);
         if (matchResult.outcome() != MatchingOutcome.EXECUTED) {
             orderBook.enqueue(originalOrder);
             if (updateOrderRq.getSide() == Side.BUY) {

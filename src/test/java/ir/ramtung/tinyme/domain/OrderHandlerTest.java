@@ -44,6 +44,8 @@ public class OrderHandlerTest {
     BrokerRepository brokerRepository;
     @Autowired
     ShareholderRepository shareholderRepository;
+    @Autowired
+    ContinuousMatcher continuousMatcher;
     private Security security;
     private Shareholder shareholder;
     private Broker broker1;
@@ -56,7 +58,7 @@ public class OrderHandlerTest {
         brokerRepository.clear();
         shareholderRepository.clear();
 
-        security = Security.builder().isin("ABC").build();
+        security = Security.builder().matcher(continuousMatcher).isin("ABC").build();
         securityRepository.addSecurity(security);
 
         shareholder = Shareholder.builder().build();
@@ -124,7 +126,7 @@ public class OrderHandlerTest {
                 matchingBuyOrder, incomingSellOrder);
 
         EventPublisher mockEventPublisher = mock(EventPublisher.class, withSettings().verboseLogging());
-        OrderHandler myOrderHandler = new OrderHandler(securityRepository, brokerRepository, shareholderRepository, mockEventPublisher, new ContinuousMatcher());
+        OrderHandler myOrderHandler = new OrderHandler(securityRepository, brokerRepository, shareholderRepository, mockEventPublisher);
         myOrderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(1,
                 incomingSellOrder.getSecurity().getIsin(),
                 incomingSellOrder.getOrderId(),
@@ -159,7 +161,7 @@ public class OrderHandlerTest {
 
     @Test
     void invalid_new_order_with_tick_and_lot_size_errors() {
-        Security aSecurity = Security.builder().isin("XXX").lotSize(10).tickSize(10).build();
+        Security aSecurity = Security.builder().matcher(continuousMatcher).isin("XXX").lotSize(10).tickSize(10).build();
         securityRepository.addSecurity(aSecurity);
         orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(1, "XXX", 1, LocalDateTime.now(), Side.SELL, 12, 1001, 1, shareholder.getShareholderId(), 0));
         ArgumentCaptor<OrderRejectedEvent> orderRejectedCaptor = ArgumentCaptor.forClass(OrderRejectedEvent.class);

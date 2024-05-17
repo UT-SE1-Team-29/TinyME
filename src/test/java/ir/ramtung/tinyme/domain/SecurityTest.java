@@ -34,7 +34,7 @@ class SecurityTest {
 
     @BeforeEach
     void setupOrderBook() {
-        security = Security.builder().build();
+        security = Security.builder().matcher(continuousMatcher).build();
         broker = Broker.builder().brokerId(0).credit(1_000_000L).build();
         shareholder = Shareholder.builder().shareholderId(0).build();
         shareholder.incPosition(security, 100_000);
@@ -56,7 +56,7 @@ class SecurityTest {
     @Test
     void reducing_quantity_does_not_change_priority() {
         EnterOrderRq updateOrderRq = EnterOrderRq.createUpdateOrderRq(1, security.getIsin(), 3, LocalDateTime.now(), BUY, 440, 15450, 0, 0, 0);
-        assertThatNoException().isThrownBy(() -> security.updateOrder(updateOrderRq, continuousMatcher));
+        assertThatNoException().isThrownBy(() -> security.updateOrder(updateOrderRq));
         assertThat(security.getOrderBook().getBuyQueue().get(2).getQuantity()).isEqualTo(440);
         assertThat(security.getOrderBook().getBuyQueue().get(2).getOrderId()).isEqualTo(3);
     }
@@ -64,7 +64,7 @@ class SecurityTest {
     @Test
     void increasing_quantity_changes_priority() {
         EnterOrderRq updateOrderRq = EnterOrderRq.createUpdateOrderRq(1, security.getIsin(), 3, LocalDateTime.now(), BUY, 450, 15450, 0, 0, 0);
-        assertThatNoException().isThrownBy(() -> security.updateOrder(updateOrderRq, continuousMatcher));
+        assertThatNoException().isThrownBy(() -> security.updateOrder(updateOrderRq));
         assertThat(security.getOrderBook().getBuyQueue().get(3).getQuantity()).isEqualTo(450);
         assertThat(security.getOrderBook().getBuyQueue().get(3).getOrderId()).isEqualTo(3);
     }
@@ -72,7 +72,7 @@ class SecurityTest {
     @Test
     void changing_price_changes_priority() {
         EnterOrderRq updateOrderRq = EnterOrderRq.createUpdateOrderRq(1, security.getIsin(), 1, LocalDateTime.now(), BUY, 300, 15450, 0, 0, 0);
-        assertThatNoException().isThrownBy(() -> security.updateOrder(updateOrderRq, continuousMatcher));
+        assertThatNoException().isThrownBy(() -> security.updateOrder(updateOrderRq));
         assertThat(security.getOrderBook().getBuyQueue().get(3).getQuantity()).isEqualTo(300);
         assertThat(security.getOrderBook().getBuyQueue().get(3).getPrice()).isEqualTo(15450);
         assertThat(security.getOrderBook().getBuyQueue().get(3).getOrderId()).isEqualTo(1);
@@ -83,14 +83,14 @@ class SecurityTest {
     void changing_price_causes_trades_to_happen() {
         EnterOrderRq updateOrderRq = EnterOrderRq.createUpdateOrderRq(1, security.getIsin(), 6, LocalDateTime.now(), Side.SELL, 350, 15700, 0, 0, 0);
         assertThatNoException().isThrownBy(() ->
-                assertThat(security.updateOrder(updateOrderRq, continuousMatcher).trades()).isNotEmpty()
+                assertThat(security.updateOrder(updateOrderRq).trades()).isNotEmpty()
         );
     }
 
     @Test
     void updating_non_existing_order_fails() {
         EnterOrderRq updateOrderRq = EnterOrderRq.createUpdateOrderRq(1, security.getIsin(), 6, LocalDateTime.now(), BUY, 350, 15700, 0, 0, 0);
-        assertThatExceptionOfType(InvalidRequestException.class).isThrownBy(() -> security.updateOrder(updateOrderRq, continuousMatcher));
+        assertThatExceptionOfType(InvalidRequestException.class).isThrownBy(() -> security.updateOrder(updateOrderRq));
     }
 
     @Test
@@ -109,7 +109,7 @@ class SecurityTest {
 
     @Test
     void increasing_iceberg_peak_size_changes_priority() {
-        security = Security.builder().build();
+        security = Security.builder().matcher(continuousMatcher).build();
         broker = Broker.builder().credit(1_000_000L).build();
         orders = Arrays.asList(
                 new Order(1, security, BUY, 304, 15700, broker, shareholder),
@@ -120,14 +120,14 @@ class SecurityTest {
         );
         orders.forEach(order -> security.getOrderBook().enqueue(order));
         EnterOrderRq updateOrderRq = EnterOrderRq.createUpdateOrderRq(1, security.getIsin(), 3, LocalDateTime.now(), BUY, 445, 15450, 0, 0, 150);
-        assertThatNoException().isThrownBy(() -> security.updateOrder(updateOrderRq, continuousMatcher));
+        assertThatNoException().isThrownBy(() -> security.updateOrder(updateOrderRq));
         assertThat(security.getOrderBook().getBuyQueue().get(3).getQuantity()).isEqualTo(150);
         assertThat(security.getOrderBook().getBuyQueue().get(3).getOrderId()).isEqualTo(3);
     }
 
     @Test
     void decreasing_iceberg_quantity_to_amount_larger_than_peak_size_does_not_changes_priority() {
-        security = Security.builder().build();
+        security = Security.builder().matcher(continuousMatcher).build();
         broker = Broker.builder().build();
         orders = Arrays.asList(
                 new Order(1, security, BUY, 304, 15700, broker, shareholder),
@@ -138,13 +138,13 @@ class SecurityTest {
         );
         orders.forEach(order -> security.getOrderBook().enqueue(order));
         EnterOrderRq updateOrderRq = EnterOrderRq.createUpdateOrderRq(1, security.getIsin(), 3, LocalDateTime.now(), BUY, 300, 15450, 0, 0, 100);
-        assertThatNoException().isThrownBy(() -> security.updateOrder(updateOrderRq, continuousMatcher));
+        assertThatNoException().isThrownBy(() -> security.updateOrder(updateOrderRq));
         assertThat(security.getOrderBook().getBuyQueue().get(2).getOrderId()).isEqualTo(3);
     }
 
     @Test
     void update_iceberg_that_loses_priority_with_no_trade_works() {
-        security = Security.builder().isin("TEST").build();
+        security = Security.builder().matcher(continuousMatcher).isin("TEST").build();
         broker = Broker.builder().brokerId(1).credit(100).build();
 
         security.getOrderBook().enqueue(
@@ -152,7 +152,7 @@ class SecurityTest {
         );
 
         EnterOrderRq updateReq = EnterOrderRq.createUpdateOrderRq(2, security.getIsin(), 1, LocalDateTime.now(), BUY, 100, 10, 0, 0, 10);
-        assertThatNoException().isThrownBy(() -> security.updateOrder(updateReq, continuousMatcher));
+        assertThatNoException().isThrownBy(() -> security.updateOrder(updateReq));
 
         assertThat(broker.getCredit()).isEqualTo(0);
         assertThat(security.getOrderBook().getBuyQueue().get(0).getOrderId()).isEqualTo(1);
@@ -160,20 +160,20 @@ class SecurityTest {
 
     @Test
     void update_iceberg_order_decrease_peak_size() {
-        security = Security.builder().isin("TEST").build();
+        security = Security.builder().matcher(continuousMatcher).isin("TEST").build();
         security.getOrderBook().enqueue(
                 new IcebergOrder(1, security, BUY, 20, 10, broker, shareholder, 10)
         );
 
         EnterOrderRq updateReq = EnterOrderRq.createUpdateOrderRq(2, security.getIsin(), 1, LocalDateTime.now(), BUY, 20, 10, 0, 0, 5);
-        assertThatNoException().isThrownBy(() -> security.updateOrder(updateReq, continuousMatcher));
+        assertThatNoException().isThrownBy(() -> security.updateOrder(updateReq));
 
         assertThat(security.getOrderBook().getBuyQueue().get(0).getQuantity()).isEqualTo(5);
     }
 
     @Test
     void update_iceberg_order_price_leads_to_match_as_new_order() throws InvalidRequestException {
-        security = Security.builder().isin("TEST").build();
+        security = Security.builder().matcher(continuousMatcher).isin("TEST").build();
         shareholder.incPosition(security, 1_000);
         orders = List.of(
                 new Order(1, security, BUY, 15, 10, broker, shareholder),
@@ -185,7 +185,7 @@ class SecurityTest {
 
         EnterOrderRq updateReq = EnterOrderRq.createUpdateOrderRq(5, security.getIsin(), 4, LocalDateTime.now(), SELL, 30, 10, 0, 0, 10);
 
-        MatchResult result = security.updateOrder(updateReq, continuousMatcher);
+        MatchResult result = security.updateOrder(updateReq);
 
         assertThat(result.outcome()).isEqualTo(MatchingOutcome.EXECUTED);
         assertThat(result.trades()).hasSize(2);

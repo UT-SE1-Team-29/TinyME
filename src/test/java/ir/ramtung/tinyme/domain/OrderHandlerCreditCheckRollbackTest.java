@@ -5,6 +5,7 @@ import ir.ramtung.tinyme.domain.entity.*;
 import ir.ramtung.tinyme.domain.entity.order.IcebergOrder;
 import ir.ramtung.tinyme.domain.entity.order.Order;
 import ir.ramtung.tinyme.domain.service.OrderHandler;
+import ir.ramtung.tinyme.domain.service.matcher.ContinuousMatcher;
 import ir.ramtung.tinyme.messaging.EventPublisher;
 import ir.ramtung.tinyme.messaging.Message;
 import ir.ramtung.tinyme.messaging.event.OrderRejectedEvent;
@@ -40,6 +41,8 @@ public class OrderHandlerCreditCheckRollbackTest {
     BrokerRepository brokerRepository;
     @Autowired
     ShareholderRepository shareholderRepository;
+    @Autowired
+    ContinuousMatcher continuousMatcher;
     private Security security;
     private Shareholder shareholder;
 
@@ -49,7 +52,7 @@ public class OrderHandlerCreditCheckRollbackTest {
         shareholderRepository.clear();
         brokerRepository.clear();
 
-        security = Security.builder().build();
+        security = Security.builder().matcher(continuousMatcher).build();
         securityRepository.addSecurity(security);
 
         shareholder = Shareholder.builder().build();
