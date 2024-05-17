@@ -45,15 +45,14 @@ public class Security {
             activatedOrders.add(stopOrder);
         }
 
-        MatchResult matchResult =
-            matcher instanceof ContinuousMatcher continuousMatcher ? continuousMatcher.executeWithMinimumQuantityCondition(order, enterOrderRq.getMinimumExecutionQuantity())
-                    : matcher.execute(order);
+        var matchResult = (matcher instanceof ContinuousMatcher continuousMatcher) ?
+                continuousMatcher.executeWithMinimumQuantityCondition(order, enterOrderRq.getMinimumExecutionQuantity()) :
+                null; // todo
 
         updateLastTransactionPrice(matchResult);
 
         activatedOrders.addAll(tryActivateQueuedStopOrdersThenReturnTheActivated());
         activatedOrders.forEach(matchResult::addActivatedOrder);
-
         return matchResult;
     }
 
@@ -151,6 +150,7 @@ public class Security {
     }
 
     private void updateLastTransactionPrice(MatchResult result) {
+        assert result != null;
         if (!result.trades().isEmpty())
             orderBook.setLastTransactionPrice(result.trades().getLast().getPrice());
     }
