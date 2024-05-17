@@ -3,12 +3,14 @@ package ir.ramtung.tinyme.domain.entity;
 import ir.ramtung.tinyme.domain.entity.order.IcebergOrder;
 import ir.ramtung.tinyme.domain.entity.order.Order;
 import ir.ramtung.tinyme.domain.entity.order.StopOrder;
+import ir.ramtung.tinyme.domain.service.matcher.AuctionMatcher;
 import ir.ramtung.tinyme.domain.service.matcher.ContinuousMatcher;
 import ir.ramtung.tinyme.domain.service.matcher.Matcher;
 import ir.ramtung.tinyme.messaging.Message;
 import ir.ramtung.tinyme.messaging.exception.InvalidRequestException;
 import ir.ramtung.tinyme.messaging.request.DeleteOrderRq;
 import ir.ramtung.tinyme.messaging.request.EnterOrderRq;
+import ir.ramtung.tinyme.messaging.request.MatchingState;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NonNull;
@@ -40,20 +42,10 @@ public class Security {
         }
         Order order = getOrder(enterOrderRq, broker, shareholder);
 
-        List<Order> activatedOrders = new ArrayList<>();
-        if (order instanceof StopOrder stopOrder && tryActivateStopOrder(stopOrder)) {
-            activatedOrders.add(stopOrder);
-        }
-
-        var matchResult = (matcher instanceof ContinuousMatcher continuousMatcher) ?
-                continuousMatcher.executeWithMinimumQuantityCondition(order, enterOrderRq.getMinimumExecutionQuantity()) :
-                null; // todo
-
-        updateLastTransactionPrice(matchResult);
-
-        activatedOrders.addAll(tryActivateQueuedStopOrdersThenReturnTheActivated());
-        activatedOrders.forEach(matchResult::addActivatedOrder);
-        return matchResult;
+        return switch (matchingState()) {
+            case CONTINUOUS -> handleNewOrderByContinuousStrategy(order, enterOrderRq);
+            case AUCTION -> handleNewOrderByAuctionStrategy(order);
+        };
     }
 
     public void deleteOrder(DeleteOrderRq deleteOrderRq) throws InvalidRequestException {
@@ -182,5 +174,30 @@ public class Security {
             }
         }
         return activatedOrders;
+    }
+
+    private MatchingState matchingState() {
+        return matcher instanceof AuctionMatcher ? MatchingState.AUCTION
+                : MatchingState.CONTINUOUS;
+    }
+
+    private MatchResult handleNewOrderByAuctionStrategy(Order order) {
+        orderBook.enqueue(order);
+        return MatchResult.executed(order, new ArrayList<>());
+    }
+
+    private MatchResult handleNewOrderByContinuousStrategy(Order order, EnterOrderRq enterOrderRq) {
+        List<Order> activatedOrders = new ArrayList<>();
+        if (order instanceof StopOrder stopOrder && tryActivateStopOrder(stopOrder)) {
+            activatedOrders.add(stopOrder);
+        }
+
+        var matchResult = ((ContinuousMatcher) matcher).executeWithMinimumQuantityCondition(order, enterOrderRq.getMinimumExecutionQuantity());
+
+        updateLastTransactionPrice(matchResult);
+
+        activatedOrders.addAll(tryActivateQueuedStopOrdersThenReturnTheActivated());
+        activatedOrders.forEach(matchResult::addActivatedOrder);
+        return matchResult;
     }
 }
