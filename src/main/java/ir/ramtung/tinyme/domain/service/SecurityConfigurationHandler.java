@@ -13,12 +13,14 @@ import org.springframework.stereotype.Service;
 @Service
 public class SecurityConfigurationHandler {
 
+    OrderHandler orderHandler;
     SecurityRepository securityRepository;
     EventPublisher eventPublisher;
     ContinuousMatcher continuousMatcher;
     AuctionMatcher auctionMatcher;
 
-    public SecurityConfigurationHandler(SecurityRepository securityRepository, EventPublisher eventPublisher, ContinuousMatcher continuousMatcher, AuctionMatcher auctionMatcher) {
+    public SecurityConfigurationHandler(OrderHandler orderHandler, SecurityRepository securityRepository, EventPublisher eventPublisher, ContinuousMatcher continuousMatcher, AuctionMatcher auctionMatcher) {
+        this.orderHandler = orderHandler;
         this.securityRepository = securityRepository;
         this.eventPublisher = eventPublisher;
         this.continuousMatcher = continuousMatcher;
@@ -32,10 +34,17 @@ public class SecurityConfigurationHandler {
                 security.getIsin(),
                 targetMatchingState
         ));
-        changeSecurityState(security, targetMatchingState);
+        changeSecurityState(security, changeMatchingStateRq);
     }
 
-    private void changeSecurityState(Security security, MatchingState targetMatchingState) {
+    private void changeSecurityState(Security security, ChangeMatchingStateRq changeMatchingStateRq) {
+        var targetMatchingState = changeMatchingStateRq.getTargetState();
+        var prevState = security.matchingState();
+
+        if (prevState == MatchingState.AUCTION) {
+            orderHandler.handleAuctionOpening(changeMatchingStateRq); // incubating decision: even though this decision was made by the executives, but it's not the best possible way to initiate an auction opening
+        }
+
         switch (targetMatchingState) {
             case AUCTION -> security.setMatcher(auctionMatcher);
             case CONTINUOUS -> security.setMatcher(continuousMatcher);

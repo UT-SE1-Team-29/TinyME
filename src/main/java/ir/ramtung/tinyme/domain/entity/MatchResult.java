@@ -12,6 +12,10 @@ public final class MatchResult {
     private final LinkedList<Trade> trades;
     private final List<Order> activatedOrders;
 
+    public static MatchResult auctionExecuted(List<Trade> trades) {
+        return new MatchResult(MatchingOutcome.EXECUTED, null, new LinkedList<>(trades));
+    }
+
     public static MatchResult executed(Order remainder, List<Trade> trades) {
         return new MatchResult(MatchingOutcome.EXECUTED, remainder, new LinkedList<>(trades));
     }

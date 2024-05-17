@@ -137,6 +137,7 @@ public class OrderBook {
             if (tradedQuantity > maxTradableQuantity) {
                 maxTradableQuantity = tradedQuantity;
                 candidateList.clear();
+                candidateList.add(candidatePrice);
             } else if (tradedQuantity == maxTradableQuantity) {
                 candidateList.add(candidatePrice);
             } else {

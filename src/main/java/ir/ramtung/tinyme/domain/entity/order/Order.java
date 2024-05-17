@@ -75,6 +75,12 @@ public class Order {
         quantity -= amount;
     }
 
+    public void decreaseTotalQuantity(int amount) {
+        if (amount > quantity)
+            throw new IllegalArgumentException();
+        quantity -= amount;
+    }
+
     public void makeQuantityZero() {
         quantity = 0;
     }
