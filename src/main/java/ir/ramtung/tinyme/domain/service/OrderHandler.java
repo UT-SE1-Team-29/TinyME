@@ -8,6 +8,7 @@ import ir.ramtung.tinyme.messaging.event.*;
 import ir.ramtung.tinyme.messaging.exception.InvalidRequestException;
 import ir.ramtung.tinyme.messaging.request.DeleteOrderRq;
 import ir.ramtung.tinyme.messaging.request.EnterOrderRq;
+import ir.ramtung.tinyme.messaging.request.MatchingState;
 import ir.ramtung.tinyme.messaging.request.OrderEntryType;
 import ir.ramtung.tinyme.repository.BrokerRepository;
 import ir.ramtung.tinyme.repository.SecurityRepository;
@@ -62,6 +63,11 @@ public class OrderHandler {
                 eventPublisher.publish(new OrderAcceptedEvent(enterOrderRq.getRequestId(), enterOrderRq.getOrderId()));
             else
                 eventPublisher.publish(new OrderUpdatedEvent(enterOrderRq.getRequestId(), enterOrderRq.getOrderId()));
+
+            if (security.matchingState() == MatchingState.AUCTION) {
+                var openingState = security.openingState();
+                eventPublisher.publish(new OpeningPriceEvent(security.getIsin(), openingState.price(), openingState.tradableQuantity()));
+            }
 
             matchResult.activatedOrders().forEach(activatedOrder ->
                     eventPublisher.publish(new OrderActivatedEvent(activatedOrder.getOrderId(), enterOrderRq.getRequestId()))

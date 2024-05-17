@@ -71,6 +71,15 @@ public class Security {
         };
     }
 
+    public MatchingState matchingState() {
+        return matcher instanceof AuctionMatcher ? MatchingState.AUCTION
+                : MatchingState.CONTINUOUS;
+    }
+    public OpeningState openingState() {
+        assert matchingState() == MatchingState.AUCTION;
+        return orderBook.calculateOpeningState();
+    }
+
     private boolean doesLosePriority(EnterOrderRq updateOrderRq, Order originalOrder) {
         return originalOrder.isQuantityIncreased(updateOrderRq.getQuantity())
                 || updateOrderRq.getPrice() != originalOrder.getPrice()
@@ -145,11 +154,6 @@ public class Security {
             }
         }
         return activatedOrders;
-    }
-
-    private MatchingState matchingState() {
-        return matcher instanceof AuctionMatcher ? MatchingState.AUCTION
-                : MatchingState.CONTINUOUS;
     }
 
     private MatchResult handleNewOrderByAuctionStrategy(Order order) {

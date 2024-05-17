@@ -8,6 +8,7 @@ import ir.ramtung.tinyme.domain.entity.Side;
 import ir.ramtung.tinyme.domain.service.OrderHandler;
 import ir.ramtung.tinyme.domain.service.matcher.AuctionMatcher;
 import ir.ramtung.tinyme.messaging.EventPublisher;
+import ir.ramtung.tinyme.messaging.event.OpeningPriceEvent;
 import ir.ramtung.tinyme.messaging.event.OrderAcceptedEvent;
 import ir.ramtung.tinyme.messaging.event.OrderDeletedEvent;
 import ir.ramtung.tinyme.messaging.event.OrderUpdatedEvent;
@@ -146,7 +147,19 @@ public class AuctionMatchingTest {
         orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(5, security.getIsin(), 5, LocalDateTime.now(),
                 Side.SELL, 60, 1420, broker1.getBrokerId(), shareholder.getShareholderId(), 0));
 
-        assertThat(security.getOrderBook().calculateOpeningPrice()).isEqualTo(1430);
+        assertThat(security.getOrderBook().calculateOpeningState().price()).isEqualTo(1430);
+        assertThat(security.getOrderBook().calculateOpeningState().tradableQuantity()).isEqualTo(12);
+    }
+
+    @Test
+    void opening_price_events_must_get_published() {
+        broker1.increaseCreditBy(100_000L);
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(1, security.getIsin(), 1, LocalDateTime.now(),
+                Side.BUY, 60, 1300, broker1.getBrokerId(), shareholder.getShareholderId(), 0));
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(2, security.getIsin(), 2, LocalDateTime.now(),
+                Side.SELL, 50, 1400, broker1.getBrokerId(), shareholder.getShareholderId(), 0));
+
+        verify(eventPublisher, times(2)).publish(any(OpeningPriceEvent.class));
     }
 }
 

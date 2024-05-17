@@ -26,10 +26,5 @@ public class SelectiveQueue extends LinkedList<Order> implements Queue {
         }
         throw new NoSuchElementException();
     }
-
-    @Override
-    public int size() {
-        return (int) this.stream().filter(Order::isActive).count();
-    }
 }
 

@@ -4,6 +4,7 @@ import ir.ramtung.tinyme.domain.entity.order.Order;
 import ir.ramtung.tinyme.domain.entity.queues.Queue;
 import ir.ramtung.tinyme.domain.entity.queues.SelectiveQueue;
 import lombok.Getter;
+import lombok.NonNull;
 import lombok.Setter;
 
 import java.util.ArrayList;
@@ -100,31 +101,43 @@ public class OrderBook {
                 .sum();
     }
 
-    /**
-     * returns null if any of the sell queue or buy queue are empty
-      */
-    public Integer calculateOpeningPrice() {
-        if (buyQueue.isEmpty() || sellQueue.isEmpty()) {
-            return null;
+    @NonNull
+    public OpeningState calculateOpeningState() {
+        var activatedBuyOrders = buyQueue.stream().filter(Order::isActive).toList();
+        var activatedSellOrders = sellQueue.stream().filter(Order::isActive).toList();
+
+        if (activatedBuyOrders.isEmpty() || activatedSellOrders.isEmpty()) {
+            return new OpeningState(0, null);
         }
-        int minBuyPrice = buyQueue.stream().min(Comparator.comparingInt(Order::getPrice)).map(Order::getPrice).get();
-        int minSellPrice = sellQueue.stream().min(Comparator.comparingInt(Order::getPrice)).map(Order::getPrice).get();
-        int maxBuyPrice = buyQueue.stream().max(Comparator.comparingInt(Order::getPrice)).map(Order::getPrice).get();
-        int maxSellPrice = sellQueue.stream().max(Comparator.comparingInt(Order::getPrice)).map(Order::getPrice).get();
+
+        int minBuyPrice = activatedBuyOrders.stream().min(Comparator.comparingInt(Order::getPrice)).map(Order::getPrice).get();
+        int minSellPrice = activatedSellOrders.stream().min(Comparator.comparingInt(Order::getPrice)).map(Order::getPrice).get();
+        int maxBuyPrice = activatedBuyOrders.stream().max(Comparator.comparingInt(Order::getPrice)).map(Order::getPrice).get();
+        int maxSellPrice = activatedSellOrders.stream().max(Comparator.comparingInt(Order::getPrice)).map(Order::getPrice).get();
         int minPrice = Math.min(minBuyPrice, minSellPrice);
         int maxPrice = Math.max(maxBuyPrice, maxSellPrice);
 
         List<Integer> candidateList = new ArrayList<>();
-        int maxTradedQuantity = 0;
+        int maxTradableQuantity = 0;
         for(int price = minPrice; price <= maxPrice; price++) {
             int candidatePrice = price;
-            int buyQuantity = (int) buyQueue.stream().filter(order -> order.getPrice() >= candidatePrice).count();
-            int sellQuantity = (int) sellQueue.stream().filter(order -> order.getPrice() <= candidatePrice).count();
+            int buyQuantity = (int) activatedBuyOrders.stream()
+                    .filter(order -> order.getPrice() >= candidatePrice)
+                    .mapToLong(Order::getTotalQuantity)
+                    .sum();
+
+            int sellQuantity = (int) activatedSellOrders.stream()
+                    .filter(order -> order.getPrice() <= candidatePrice)
+                    .mapToLong(Order::getTotalQuantity)
+                    .sum();
+
             int tradedQuantity = Math.min(buyQuantity, sellQuantity);
-            if (tradedQuantity > maxTradedQuantity) {
-                maxTradedQuantity = tradedQuantity;
+
+
+            if (tradedQuantity > maxTradableQuantity) {
+                maxTradableQuantity = tradedQuantity;
                 candidateList.clear();
-            } else if (tradedQuantity == maxTradedQuantity) {
+            } else if (tradedQuantity == maxTradableQuantity) {
                 candidateList.add(candidatePrice);
             } else {
                 continue; // do nothing
@@ -132,13 +145,14 @@ public class OrderBook {
         }
 
         if (candidateList.isEmpty()) {
-            return null;
+            return new OpeningState(0, null);
         }
         if (lastTransactionPrice == null) {
-            return candidateList.get(0);
+            return new OpeningState(maxTradableQuantity, candidateList.get(0));
         }
-        return candidateList.stream()
+        var bestPrice = candidateList.stream()
                 .min((o1, o2) -> Math.abs(o1 - lastTransactionPrice) - Math.abs(o2 - lastTransactionPrice))
                 .get();
+        return new OpeningState(maxTradableQuantity, bestPrice);
     }
 }
