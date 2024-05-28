@@ -76,14 +76,9 @@ public class OrderBook {
         queue.addFirst(order);
     }
 
-    public void restoreSellOrder(Order sellOrder) {
-        removeByOrderId(Side.SELL, sellOrder.getOrderId());
-        putBack(sellOrder);
-    }
-
-    public void restoreBuyOrder(Order buyOrder) {
-        removeByOrderId(Side.BUY, buyOrder.getOrderId());
-        putBack(buyOrder);
+    public void restoreOrder(Order order) {
+        removeByOrderId(order.getSide(), order.getOrderId());
+        putBack(order);
     }
 
     public boolean hasOrderOfType(Side side) {

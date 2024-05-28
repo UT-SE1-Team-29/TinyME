@@ -38,7 +38,7 @@ public interface Matcher {
 
         ListIterator<Trade> it = trades.listIterator(trades.size());
         while (it.hasPrevious()) {
-            newOrder.getSecurity().getOrderBook().restoreSellOrder(it.previous().getSell());
+            newOrder.getSecurity().getOrderBook().restoreOrder(it.previous().getSell());
         }
     }
 
@@ -49,7 +49,7 @@ public interface Matcher {
 
         ListIterator<Trade> it = trades.listIterator(trades.size());
         while (it.hasPrevious()) {
-            newOrder.getSecurity().getOrderBook().restoreBuyOrder(it.previous().getBuy());
+            newOrder.getSecurity().getOrderBook().restoreOrder(it.previous().getBuy());
         }
     }
 }
