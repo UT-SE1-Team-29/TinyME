@@ -1,63 +1,102 @@
 package ir.ramtung.tinyme.messaging.request;
 
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.datatype.jsr310.deser.LocalDateTimeDeserializer;
+import com.fasterxml.jackson.datatype.jsr310.ser.LocalDateTimeSerializer;
 import ir.ramtung.tinyme.domain.entity.Side;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
+import lombok.*;
 
 import java.time.LocalDateTime;
 
-@Data
-@EqualsAndHashCode(callSuper = false)
-public class EnterOrderRq extends Request {
-    private OrderEntryType requestType;
-    private String securityIsin;
-    private long orderId;
-    private Side side;
-    private int quantity;
-    private int price;
-    private long brokerId;
-    private long shareholderId;
-    private int peakSize;
-    private int minimumExecutionQuantity;
-    private int stopPrice;
+@Value
+@Builder
+public class EnterOrderRq {
+    OrderEntryType requestType;
+    long requestId;
+    String securityIsin;
+    long orderId;
+    @JsonSerialize(using = LocalDateTimeSerializer.class)
+    @JsonDeserialize(using = LocalDateTimeDeserializer.class)
+    @Builder.Default
+    LocalDateTime entryTime = LocalDateTime.now();
+    Side side;
+    int quantity;
+    int price;
+    long brokerId;
+    long shareholderId;
+    @Builder.Default
+    int peakSize = 0;
+    @Builder.Default
+    int minimumExecutionQuantity = 0;
+    @Builder.Default
+    int stopPrice = 0;
 
-    private EnterOrderRq(OrderEntryType orderEntryType, long requestId, String securityIsin, long orderId, LocalDateTime entryTime, Side side, int quantity, int price, long brokerId, long shareholderId, int peakSize, int minimumExecutionQuantity, int stopPrice) {
-        super(requestId, entryTime);
-        this.requestType = orderEntryType;
-        this.securityIsin = securityIsin;
-        this.orderId = orderId;
-        this.side = side;
-        this.quantity = quantity;
-        this.price = price;
-        this.brokerId = brokerId;
-        this.shareholderId = shareholderId;
-        this.peakSize = peakSize;
-        this.minimumExecutionQuantity = minimumExecutionQuantity;
-        this.stopPrice = stopPrice;
-    }
-
+    @Deprecated
     public static EnterOrderRq createNewOrderRq(long requestId, String securityIsin, long orderId, LocalDateTime entryTime, Side side, int quantity, int price, long brokerId, long shareholderId, int peakSize, int minimumExecutionQuantity, int stopPrice) {
-        return new EnterOrderRq(OrderEntryType.NEW_ORDER, requestId, securityIsin, orderId, entryTime, side, quantity, price, brokerId, shareholderId, peakSize, minimumExecutionQuantity, stopPrice);
+        return builderWithFilledEssentialFields(requestId, securityIsin, orderId, entryTime, side, quantity, price, brokerId, shareholderId)
+                .requestType(OrderEntryType.NEW_ORDER)
+                .peakSize(peakSize)
+                .minimumExecutionQuantity(minimumExecutionQuantity)
+                .stopPrice(stopPrice)
+                .build();
     }
 
+    @Deprecated
     public static EnterOrderRq createNewOrderRq(long requestId, String securityIsin, long orderId, LocalDateTime entryTime, Side side, int quantity, int price, long brokerId, long shareholderId, int peakSize, int minimumExecutionQuantity) {
-        return new EnterOrderRq(OrderEntryType.NEW_ORDER, requestId, securityIsin, orderId, entryTime, side, quantity, price, brokerId, shareholderId, peakSize, minimumExecutionQuantity, 0);
+        return builderWithFilledEssentialFields(requestId, securityIsin, orderId, entryTime, side, quantity, price, brokerId, shareholderId)
+                .requestType(OrderEntryType.NEW_ORDER)
+                .peakSize(peakSize)
+                .minimumExecutionQuantity(minimumExecutionQuantity)
+                .build();
     }
 
+    @Deprecated
     public static EnterOrderRq createNewOrderRq(long requestId, String securityIsin, long orderId, LocalDateTime entryTime, Side side, int quantity, int price, long brokerId, long shareholderId, int peakSize) {
-        return new EnterOrderRq(OrderEntryType.NEW_ORDER, requestId, securityIsin, orderId, entryTime, side, quantity, price, brokerId, shareholderId, peakSize, 0, 0);
+        return builderWithFilledEssentialFields(requestId, securityIsin, orderId, entryTime, side, quantity, price, brokerId, shareholderId)
+                .requestType(OrderEntryType.NEW_ORDER)
+                .peakSize(peakSize)
+                .build();
     }
 
+    @Deprecated
     public static EnterOrderRq createUpdateOrderRq(long requestId, String securityIsin, long orderId, LocalDateTime entryTime, Side side, int quantity, int price, long brokerId, long shareholderId, int peakSize, int minimumExecutionQuantity, int stopPrice) {
-        return new EnterOrderRq(OrderEntryType.UPDATE_ORDER, requestId, securityIsin, orderId, entryTime, side, quantity, price, brokerId, shareholderId, peakSize, minimumExecutionQuantity, stopPrice);
+        return builderWithFilledEssentialFields(requestId, securityIsin, orderId, entryTime, side, quantity, price, brokerId, shareholderId)
+                .requestType(OrderEntryType.UPDATE_ORDER)
+                .peakSize(peakSize)
+                .minimumExecutionQuantity(minimumExecutionQuantity)
+                .stopPrice(stopPrice)
+                .build();
     }
 
+    @Deprecated
     public static EnterOrderRq createUpdateOrderRq(long requestId, String securityIsin, long orderId, LocalDateTime entryTime, Side side, int quantity, int price, long brokerId, long shareholderId, int peakSize, int minimumExecutionQuantity) {
-        return new EnterOrderRq(OrderEntryType.UPDATE_ORDER, requestId, securityIsin, orderId, entryTime, side, quantity, price, brokerId, shareholderId, peakSize, minimumExecutionQuantity, 0);
+        return builderWithFilledEssentialFields(requestId, securityIsin, orderId, entryTime, side, quantity, price, brokerId, shareholderId)
+                .requestType(OrderEntryType.UPDATE_ORDER)
+                .peakSize(peakSize)
+                .minimumExecutionQuantity(minimumExecutionQuantity)
+                .build();
     }
 
+    @Deprecated
     public static EnterOrderRq createUpdateOrderRq(long requestId, String securityIsin, long orderId, LocalDateTime entryTime, Side side, int quantity, int price, long brokerId, long shareholderId, int peakSize) {
-        return new EnterOrderRq(OrderEntryType.UPDATE_ORDER, requestId, securityIsin, orderId, entryTime, side, quantity, price, brokerId, shareholderId, peakSize, 0, 0);
+        return builderWithFilledEssentialFields(requestId, securityIsin, orderId, entryTime, side, quantity, price, brokerId, shareholderId)
+                .requestType(OrderEntryType.UPDATE_ORDER)
+                .peakSize(peakSize)
+                .build();
     }
 
+    @Deprecated
+    private static EnterOrderRq.EnterOrderRqBuilder builderWithFilledEssentialFields(long requestId, String securityIsin, long orderId, LocalDateTime entryTime, Side side, int quantity, int price, long brokerId, long shareholderId) {
+        return EnterOrderRq.builder()
+                .requestId(requestId)
+                .securityIsin(securityIsin)
+                .orderId(orderId)
+                .entryTime(entryTime)
+                .side(side)
+                .quantity(quantity)
+                .price(price)
+                .brokerId(brokerId)
+                .shareholderId(shareholderId);
+    }
 }
