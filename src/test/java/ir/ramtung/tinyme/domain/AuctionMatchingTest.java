@@ -185,7 +185,7 @@ public class AuctionMatchingTest {
 
     @Test
     void opening_price_must_be_right() {
-        security.getOrderBook().setLastTransactionPrice(1430);
+        security.setLastTransactionPrice(1430);
         orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(1, security.getIsin(), 1, LocalDateTime.now(),
                 Side.BUY, 60, 1300, broker1.getBrokerId(), shareholder.getShareholderId(), 0));
         orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(2, security.getIsin(), 2, LocalDateTime.now(),
@@ -226,7 +226,7 @@ public class AuctionMatchingTest {
 
     @Test
     void auction_execution_normal_with_buy_orders_to_finish() {
-        security.getOrderBook().setLastTransactionPrice(1400);
+        security.setLastTransactionPrice(1400);
         orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(1, security.getIsin(), 1, LocalDateTime.now(),
                 Side.BUY, 60, 1300, broker1.getBrokerId(), shareholder.getShareholderId(), 0));
         orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(2, security.getIsin(), 2, LocalDateTime.now(),
@@ -248,7 +248,7 @@ public class AuctionMatchingTest {
 
     @Test
     void auction_execution_normal_with_sell_orders_to_finish() {
-        security.getOrderBook().setLastTransactionPrice(1000);
+        security.setLastTransactionPrice(1000);
         orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(1, security.getIsin(), 1, LocalDateTime.now(),
                 Side.BUY, 80, 1300, broker1.getBrokerId(), shareholder.getShareholderId(), 0));
         orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(2, security.getIsin(), 2, LocalDateTime.now(),
@@ -270,7 +270,7 @@ public class AuctionMatchingTest {
 
     @Test
     void auction_execution_iceberg_order() {
-        security.getOrderBook().setLastTransactionPrice(1000);
+        security.setLastTransactionPrice(1000);
         orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(1, security.getIsin(), 1, LocalDateTime.now(),
                 Side.BUY, 80, 1300, broker1.getBrokerId(), shareholder.getShareholderId(), 5));
         orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(2, security.getIsin(), 2, LocalDateTime.now(),
@@ -294,7 +294,7 @@ public class AuctionMatchingTest {
 
     @Test
     void last_transaction_price_must_be_updated_after_auction() {
-        security.getOrderBook().setLastTransactionPrice(1000);
+        security.setLastTransactionPrice(1000);
         orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(1, security.getIsin(), 1, LocalDateTime.now(),
                 Side.BUY, 80, 1300, broker1.getBrokerId(), shareholder.getShareholderId(), 0));
         orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(2, security.getIsin(), 2, LocalDateTime.now(),
@@ -339,7 +339,7 @@ public class AuctionMatchingTest {
 
     @Test
     void after_auction_execution_iceberg_order_behaves_normally() {
-        security.getOrderBook().setLastTransactionPrice(1000);
+        security.setLastTransactionPrice(1000);
         orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(1, security.getIsin(), 1, LocalDateTime.now(),
                 Side.BUY, 80, 1300, broker1.getBrokerId(), shareholder.getShareholderId(), 5));
         orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(2, security.getIsin(), 2, LocalDateTime.now(),

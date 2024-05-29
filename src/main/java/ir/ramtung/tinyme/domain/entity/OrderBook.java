@@ -50,16 +50,15 @@ public class OrderBook {
         return null;
     }
 
-    public boolean removeByOrderId(Side side, long orderId) {
+    public void removeByOrderId(Side side, long orderId) {
         var queue = getQueue(side);
         var it = queue.listIterator();
         while (it.hasNext()) {
             if (it.next().getOrderId() == orderId) {
                 it.remove();
-                return true;
+                return;
             }
         }
-        return false;
     }
 
     public Order matchWithFirst(Order newOrder) {
@@ -135,8 +134,6 @@ public class OrderBook {
                 candidateList.add(candidatePrice);
             } else if (tradedQuantity == maxTradableQuantity) {
                 candidateList.add(candidatePrice);
-            } else {
-                continue; // do nothing
             }
         }
 

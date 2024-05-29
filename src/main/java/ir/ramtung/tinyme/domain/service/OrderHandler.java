@@ -10,6 +10,7 @@ import ir.ramtung.tinyme.messaging.request.*;
 import ir.ramtung.tinyme.repository.BrokerRepository;
 import ir.ramtung.tinyme.repository.SecurityRepository;
 import ir.ramtung.tinyme.repository.ShareholderRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.LinkedList;
@@ -17,18 +18,13 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
+@RequiredArgsConstructor
 public class OrderHandler {
-    SecurityRepository securityRepository;
-    BrokerRepository brokerRepository;
-    ShareholderRepository shareholderRepository;
-    EventPublisher eventPublisher;
-
-    public OrderHandler(SecurityRepository securityRepository, BrokerRepository brokerRepository, ShareholderRepository shareholderRepository, EventPublisher eventPublisher) {
-        this.securityRepository = securityRepository;
-        this.brokerRepository = brokerRepository;
-        this.shareholderRepository = shareholderRepository;
-        this.eventPublisher = eventPublisher;
-    }
+    final SecurityRepository securityRepository;
+    final BrokerRepository brokerRepository;
+    final ShareholderRepository shareholderRepository;
+    final EventPublisher eventPublisher;
+    final SecurityHandler securityHandler;
 
     public void handleEnterOrder(EnterOrderRq enterOrderRq) {
         try {
@@ -40,9 +36,9 @@ public class OrderHandler {
 
             MatchResult matchResult;
             if (enterOrderRq.getRequestType() == OrderEntryType.NEW_ORDER)
-                matchResult = security.newOrder(enterOrderRq, broker, shareholder);
+                matchResult = securityHandler.newOrder(security, enterOrderRq, broker, shareholder);
             else
-                matchResult = security.updateOrder(enterOrderRq);
+                matchResult = securityHandler.updateOrder(security, enterOrderRq);
 
             if (matchResult.outcome() == MatchingOutcome.NOT_ENOUGH_CREDIT) {
                 eventPublisher.publish(new OrderRejectedEvent(enterOrderRq.getRequestId(), enterOrderRq.getOrderId(), List.of(Message.BUYER_HAS_NOT_ENOUGH_CREDIT)));
@@ -86,7 +82,7 @@ public class OrderHandler {
         try {
             validateDeleteOrderRq(deleteOrderRq);
             Security security = securityRepository.findSecurityByIsin(deleteOrderRq.getSecurityIsin());
-            security.deleteOrder(deleteOrderRq);
+            securityHandler.deleteOrder(security, deleteOrderRq);
             eventPublisher.publish(new OrderDeletedEvent(deleteOrderRq.getRequestId(), deleteOrderRq.getOrderId()));
         } catch (InvalidRequestException ex) {
             eventPublisher.publish(new OrderRejectedEvent(deleteOrderRq.getRequestId(), deleteOrderRq.getOrderId(), ex.getReasons()));
@@ -96,7 +92,7 @@ public class OrderHandler {
     public void handleAuctionOpening(ChangeMatchingStateRq changeMatchingStateRq) {
         var security = securityRepository.findSecurityByIsin(changeMatchingStateRq.getSecurityIsin());
         assert security.matchingState() == MatchingState.AUCTION;
-        MatchResult matchResult = security.executeAuction();
+        MatchResult matchResult = securityHandler.executeAuction(security);
 
         if (matchResult.trades().isEmpty()) {
             eventPublisher.publish(new OrderRejectedEvent());

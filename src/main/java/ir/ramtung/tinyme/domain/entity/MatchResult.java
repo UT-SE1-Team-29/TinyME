@@ -1,45 +1,53 @@
 package ir.ramtung.tinyme.domain.entity;
 
 import ir.ramtung.tinyme.domain.entity.order.Order;
+import lombok.Builder;
+import lombok.Singular;
 
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
 
+@Builder
 public final class MatchResult {
     private final MatchingOutcome outcome;
     private final Order remainder;
-    private final LinkedList<Trade> trades;
-    private final List<Order> activatedOrders;
+    @Singular
+    private final List<Trade> trades = new LinkedList<>();
+    @Singular
+    private final List<Order> activatedOrders = new LinkedList<>();
 
     public static MatchResult auctionExecuted(List<Trade> trades) {
-        return new MatchResult(MatchingOutcome.EXECUTED, null, new LinkedList<>(trades));
+        return new MatchResult(MatchingOutcome.EXECUTED, null, trades);
     }
 
     public static MatchResult executed(Order remainder, List<Trade> trades) {
-        return new MatchResult(MatchingOutcome.EXECUTED, remainder, new LinkedList<>(trades));
+        return new MatchResult(MatchingOutcome.EXECUTED, remainder, trades);
     }
 
     public static MatchResult notEnoughCredit() {
-        return new MatchResult(MatchingOutcome.NOT_ENOUGH_CREDIT, null, new LinkedList<>());
+        return new MatchResult(MatchingOutcome.NOT_ENOUGH_CREDIT, null);
     }
     public static MatchResult notEnoughPositions() {
-        return new MatchResult(MatchingOutcome.NOT_ENOUGH_POSITIONS, null, new LinkedList<>());
+        return new MatchResult(MatchingOutcome.NOT_ENOUGH_POSITIONS, null);
     }
 
     public static MatchResult minimumQuantityConditionFailed() {
-        return new MatchResult(MatchingOutcome.MINIMUM_QUANTITY_CONDITION_FAILED, null, new LinkedList<>());
+        return new MatchResult(MatchingOutcome.MINIMUM_QUANTITY_CONDITION_FAILED, null);
     }
 
     public static MatchResult minimumQuantityConditionForAuctionMode() {
-        return new MatchResult(MatchingOutcome.MINIMUM_QUANTITY_CONDITION_FOR_AUCTION_MODE, null, new LinkedList<>());
+        return new MatchResult(MatchingOutcome.MINIMUM_QUANTITY_CONDITION_FOR_AUCTION_MODE, null);
     }
 
-    private MatchResult(MatchingOutcome outcome, Order remainder, LinkedList<Trade> trades) {
+    private MatchResult(MatchingOutcome outcome, Order remainder, List<Trade> trades) {
+        this(outcome, remainder);
+        this.trades.addAll(trades);
+    }
+
+    private MatchResult(MatchingOutcome outcome, Order remainder) {
         this.outcome = outcome;
         this.remainder = remainder;
-        this.trades = trades;
-        this.activatedOrders = new LinkedList<>();
     }
 
     public MatchingOutcome outcome() {
@@ -50,7 +58,7 @@ public final class MatchResult {
     }
 
     public LinkedList<Trade> trades() {
-        return trades;
+        return (LinkedList<Trade>) trades;
     }
 
     public List<Order> activatedOrders() {
