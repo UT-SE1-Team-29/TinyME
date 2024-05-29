@@ -11,6 +11,7 @@ import ir.ramtung.tinyme.messaging.exception.InvalidRequestException;
 import ir.ramtung.tinyme.messaging.request.DeleteOrderRq;
 import ir.ramtung.tinyme.messaging.request.EnterOrderRq;
 import ir.ramtung.tinyme.messaging.request.MatchingState;
+import ir.ramtung.tinyme.messaging.request.Extensions;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -27,10 +28,11 @@ public class SecurityHandler {
             return MatchResult.notEnoughPositions();
         }
         Order order = getOrder(enterOrderRq, security, broker, shareholder);
+        var extensions = enterOrderRq.getExtensions();
 
         return switch (security.matchingState()) {
-            case CONTINUOUS -> handleNewOrderByContinuousStrategy(security, order, enterOrderRq);
-            case AUCTION -> handleNewOrderByAuctionStrategy(security, order, enterOrderRq);
+            case CONTINUOUS -> handleNewOrderByContinuousStrategy(order, extensions);
+            case AUCTION -> handleNewOrderByAuctionStrategy(order, extensions);
         };
     }
 
@@ -76,12 +78,13 @@ public class SecurityHandler {
     }
 
     private boolean doesLosePriority(EnterOrderRq updateOrderRq, Order originalOrder) {
+        var updatedExtensions = updateOrderRq.getExtensions();
         return originalOrder.isQuantityIncreased(updateOrderRq.getQuantity())
                 || updateOrderRq.getPrice() != originalOrder.getPrice()
-                || ((originalOrder instanceof IcebergOrder icebergOrder) && (icebergOrder.getPeakSize() < updateOrderRq.getPeakSize()))
+                || ((originalOrder instanceof IcebergOrder icebergOrder) && (icebergOrder.getPeakSize() < updatedExtensions.peakSize()))
                 || ((originalOrder instanceof StopOrder stopOrder) && (
-                (stopOrder.getSide() == Side.BUY && stopOrder.getStopPrice() > updateOrderRq.getStopPrice())
-                        || (stopOrder.getSide() == Side.SELL && stopOrder.getStopPrice() < updateOrderRq.getStopPrice())));
+                (stopOrder.getSide() == Side.BUY && stopOrder.getStopPrice() > updatedExtensions.stopPrice())
+                        || (stopOrder.getSide() == Side.SELL && stopOrder.getStopPrice() < updatedExtensions.stopPrice())));
     }
 
     private boolean doesNotHaveEnoughPositions(Security security, EnterOrderRq updateOrderRq, Order order) {
@@ -94,24 +97,25 @@ public class SecurityHandler {
     private void validateUpdateOrderRequest(EnterOrderRq updateOrderRq, Order order) throws InvalidRequestException {
         if (order == null)
             throw new InvalidRequestException(Message.ORDER_ID_NOT_FOUND);
-        if ((order instanceof IcebergOrder) && updateOrderRq.getPeakSize() == 0)
+        if ((order instanceof IcebergOrder) && updateOrderRq.getExtensions().peakSize() == 0)
             throw new InvalidRequestException(Message.INVALID_PEAK_SIZE);
-        if (!(order instanceof IcebergOrder) && updateOrderRq.getPeakSize() != 0)
+        if (!(order instanceof IcebergOrder) && updateOrderRq.getExtensions().peakSize() != 0)
             throw new InvalidRequestException(Message.CANNOT_SPECIFY_PEAK_SIZE_FOR_A_NON_ICEBERG_ORDER);
-        if ((order instanceof StopOrder) && order.isActive() && updateOrderRq.getStopPrice() != 0)
+        if ((order instanceof StopOrder) && order.isActive() && updateOrderRq.getExtensions().stopPrice() != 0)
             throw new InvalidRequestException(Message.INVALID_STOP_PRICE);
-        if (!(order instanceof StopOrder) && updateOrderRq.getStopPrice() != 0)
+        if (!(order instanceof StopOrder) && updateOrderRq.getExtensions().stopPrice() != 0)
             throw new InvalidRequestException(Message.CANNOT_SPECIFY_STOP_PRICE_FOR_A_NON_STOP_ORDER);
     }
 
     private Order getOrder(EnterOrderRq enterOrderRq, Security security, Broker broker, Shareholder shareholder) {
-        if (enterOrderRq.getPeakSize() > 0)
+        var extensions = enterOrderRq.getExtensions();
+        if (extensions.peakSize() > 0)
             return new IcebergOrder(enterOrderRq.getOrderId(), security, enterOrderRq.getSide(),
                     enterOrderRq.getQuantity(), enterOrderRq.getPrice(), broker, shareholder,
-                    enterOrderRq.getEntryTime(), enterOrderRq.getPeakSize());
-        if (enterOrderRq.getStopPrice() > 0) {
+                    enterOrderRq.getEntryTime(), extensions.peakSize());
+        if (extensions.stopPrice() > 0) {
             return new StopOrder(enterOrderRq.getOrderId(), security, enterOrderRq.getSide(),
-                    enterOrderRq.getQuantity(), enterOrderRq.getPrice(), broker, shareholder, enterOrderRq.getEntryTime(), enterOrderRq.getStopPrice());
+                    enterOrderRq.getQuantity(), enterOrderRq.getPrice(), broker, shareholder, enterOrderRq.getEntryTime(), extensions.stopPrice());
         }
         return new Order(enterOrderRq.getOrderId(), security, enterOrderRq.getSide(),
                 enterOrderRq.getQuantity(), enterOrderRq.getPrice(), broker, shareholder, enterOrderRq.getEntryTime());
@@ -119,8 +123,9 @@ public class SecurityHandler {
 
     private void updateLastTransactionPrice(Security security, MatchResult result) {
         assert result != null;
-        if (!result.trades().isEmpty())
+        if (!result.trades().isEmpty()) {
             security.setLastTransactionPrice(result.trades().getLast().getPrice());
+        }
     }
 
     /**
@@ -154,21 +159,22 @@ public class SecurityHandler {
         return activatedOrders;
     }
 
-    private MatchResult handleNewOrderByAuctionStrategy(Security security, Order order, EnterOrderRq enterOrderRq) {
-        if (enterOrderRq.getMinimumExecutionQuantity() != 0) {
+    private MatchResult handleNewOrderByAuctionStrategy(Order order, Extensions extensions) {
+        if (extensions.minimumExecutionQuantity() != 0) {
             return MatchResult.minimumQuantityConditionForAuctionMode();
         }
-        return security.getMatcher().executeWithoutMatching(order);
+        return order.getSecurity().getMatcher().executeWithoutMatching(order);
     }
 
-    private MatchResult handleNewOrderByContinuousStrategy(Security security, Order order, EnterOrderRq enterOrderRq) {
+    private MatchResult handleNewOrderByContinuousStrategy(Order order, Extensions extensions) {
+        var security = order.getSecurity();
         var matcher = security.getMatcher();
         List<Order> activatedOrders = new ArrayList<>();
         if (order instanceof StopOrder stopOrder && tryActivateStopOrder(security, stopOrder)) {
             activatedOrders.add(stopOrder);
         }
 
-        var matchResult = ((ContinuousMatcher) matcher).executeWithMinimumQuantityCondition(order, enterOrderRq.getMinimumExecutionQuantity());
+        var matchResult = ((ContinuousMatcher) matcher).executeWithMinimumQuantityCondition(order, extensions.minimumExecutionQuantity());
 
         updateLastTransactionPrice(security, matchResult);
 

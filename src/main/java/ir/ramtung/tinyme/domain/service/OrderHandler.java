@@ -112,6 +112,8 @@ public class OrderHandler {
     }
 
     private void validateEnterOrderRq(EnterOrderRq enterOrderRq) throws InvalidRequestException {
+        var extensions = enterOrderRq.getExtensions();
+
         List<String> errors = new LinkedList<>();
         if (enterOrderRq.getOrderId() <= 0)
             errors.add(Message.INVALID_ORDER_ID);
@@ -132,15 +134,15 @@ public class OrderHandler {
             errors.add(Message.UNKNOWN_BROKER_ID);
         if (shareholderRepository.findShareholderById(enterOrderRq.getShareholderId()) == null)
             errors.add(Message.UNKNOWN_SHAREHOLDER_ID);
-        if (enterOrderRq.getPeakSize() < 0 || enterOrderRq.getPeakSize() >= enterOrderRq.getQuantity())
+        if (extensions.peakSize() < 0 || extensions.peakSize() >= enterOrderRq.getQuantity())
             errors.add(Message.INVALID_PEAK_SIZE);
-        if (enterOrderRq.getMinimumExecutionQuantity() < 0 || enterOrderRq.getMinimumExecutionQuantity() > enterOrderRq.getQuantity())
+        if (extensions.minimumExecutionQuantity() < 0 || extensions.minimumExecutionQuantity() > enterOrderRq.getQuantity())
             errors.add(Message.INVALID_MINIMUM_EXECUTION_QUANTITY);
-        if (enterOrderRq.getStopPrice() < 0)
+        if (extensions.stopPrice() < 0)
             errors.add(Message.INVALID_STOP_PRICE);
-        if(enterOrderRq.getStopPrice() > 0 && enterOrderRq.getMinimumExecutionQuantity() > 0)
+        if(extensions.stopPrice() > 0 && extensions.minimumExecutionQuantity() > 0)
             errors.add(Message.INVALID_MINIMUM_EXECUTION_QUANTITY_FOR_STOP_ORDERS);
-        if(enterOrderRq.getStopPrice() > 0 && enterOrderRq.getPeakSize() > 0)
+        if(extensions.stopPrice() > 0 && extensions.peakSize() > 0)
             errors.add(Message.INVALID_PEAK_SIZE_FOR_STOP_ORDERS);
         if (!errors.isEmpty())
             throw new InvalidRequestException(errors);

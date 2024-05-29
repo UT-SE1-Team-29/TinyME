@@ -77,12 +77,13 @@ public class IcebergOrder extends Order {
     @Override
     public void updateFromRequest(EnterOrderRq updateOrderRq) {
         super.updateFromRequest(updateOrderRq);
-        if (peakSize < updateOrderRq.getPeakSize()) {
-            displayedQuantity = Math.min(quantity, updateOrderRq.getPeakSize());
+        var peakSize = updateOrderRq.getExtensions().peakSize();
+        if (this.peakSize < peakSize) {
+            displayedQuantity = Math.min(quantity, peakSize);
         }
-        else if (peakSize > updateOrderRq.getPeakSize()) {
-            displayedQuantity = Math.min(displayedQuantity, updateOrderRq.getPeakSize());
+        else if (this.peakSize > peakSize) {
+            displayedQuantity = Math.min(displayedQuantity, peakSize);
         }
-        peakSize = updateOrderRq.getPeakSize();
+        this.peakSize = peakSize;
     }
 }

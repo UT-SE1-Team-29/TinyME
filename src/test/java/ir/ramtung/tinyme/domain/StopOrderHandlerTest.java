@@ -13,6 +13,7 @@ import ir.ramtung.tinyme.messaging.Message;
 import ir.ramtung.tinyme.messaging.event.*;
 import ir.ramtung.tinyme.messaging.request.DeleteOrderRq;
 import ir.ramtung.tinyme.messaging.request.EnterOrderRq;
+import ir.ramtung.tinyme.messaging.request.Extensions;
 import ir.ramtung.tinyme.repository.BrokerRepository;
 import ir.ramtung.tinyme.repository.SecurityRepository;
 import ir.ramtung.tinyme.repository.ShareholderRepository;
@@ -151,20 +152,18 @@ public class StopOrderHandlerTest {
                 new Order(1, security, Side.SELL, 100, 10, broker1, shareholder)
         );
 
-        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(
-                1,
-                security.getIsin(),
-                2,
-                LocalDateTime.now(),
-                BUY,
-                120,
-                10,
-                broker2.getBrokerId(),
-                shareholder.getShareholderId(),
-                0,
-                0,
-                -1
-        ));
+        orderHandler.handleEnterOrder(EnterOrderRq.builder()
+                .requestId(1)
+                .securityIsin(security.getIsin())
+                .orderId(2)
+                .side(BUY)
+                .quantity(120)
+                .price(10)
+                .brokerId(broker2.getBrokerId())
+                .shareholderId(shareholder.getShareholderId())
+                .extensions(new Extensions(0, 0, -1))
+                .build()
+        );
 
         ArgumentCaptor<OrderRejectedEvent> orderRejectedCaptor = ArgumentCaptor.forClass(OrderRejectedEvent.class);
         verify(eventPublisher).publish(orderRejectedCaptor.capture());

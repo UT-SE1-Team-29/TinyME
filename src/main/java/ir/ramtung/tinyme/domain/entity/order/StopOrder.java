@@ -48,8 +48,9 @@ public class StopOrder extends Order {
     @Override
     public void updateFromRequest(EnterOrderRq updateOrderRq) {
         super.updateFromRequest(updateOrderRq);
-        if (!this.isActive() && updateOrderRq.getStopPrice() != 0) {
-            this.stopPrice = updateOrderRq.getStopPrice();
+        var stopPrice = updateOrderRq.getExtensions().stopPrice();
+        if (!this.isActive() && stopPrice != 0) {
+            this.stopPrice = stopPrice;
         }
     }
 }

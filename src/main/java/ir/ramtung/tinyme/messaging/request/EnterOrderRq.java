@@ -5,7 +5,9 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.datatype.jsr310.deser.LocalDateTimeDeserializer;
 import com.fasterxml.jackson.datatype.jsr310.ser.LocalDateTimeSerializer;
 import ir.ramtung.tinyme.domain.entity.Side;
-import lombok.*;
+import lombok.Builder;
+import lombok.NonNull;
+import lombok.Value;
 
 import java.time.LocalDateTime;
 
@@ -26,19 +28,14 @@ public class EnterOrderRq {
     long brokerId;
     long shareholderId;
     @Builder.Default
-    int peakSize = 0;
-    @Builder.Default
-    int minimumExecutionQuantity = 0;
-    @Builder.Default
-    int stopPrice = 0;
+    @NonNull
+    Extensions extensions = new Extensions(0, 0, 0);
 
     @Deprecated
     public static EnterOrderRq createNewOrderRq(long requestId, String securityIsin, long orderId, LocalDateTime entryTime, Side side, int quantity, int price, long brokerId, long shareholderId, int peakSize, int minimumExecutionQuantity, int stopPrice) {
         return builderWithFilledEssentialFields(requestId, securityIsin, orderId, entryTime, side, quantity, price, brokerId, shareholderId)
                 .requestType(OrderEntryType.NEW_ORDER)
-                .peakSize(peakSize)
-                .minimumExecutionQuantity(minimumExecutionQuantity)
-                .stopPrice(stopPrice)
+                .extensions(new Extensions(peakSize, minimumExecutionQuantity, stopPrice))
                 .build();
     }
 
@@ -46,8 +43,7 @@ public class EnterOrderRq {
     public static EnterOrderRq createNewOrderRq(long requestId, String securityIsin, long orderId, LocalDateTime entryTime, Side side, int quantity, int price, long brokerId, long shareholderId, int peakSize, int minimumExecutionQuantity) {
         return builderWithFilledEssentialFields(requestId, securityIsin, orderId, entryTime, side, quantity, price, brokerId, shareholderId)
                 .requestType(OrderEntryType.NEW_ORDER)
-                .peakSize(peakSize)
-                .minimumExecutionQuantity(minimumExecutionQuantity)
+                .extensions(new Extensions(peakSize, minimumExecutionQuantity, 0))
                 .build();
     }
 
@@ -55,7 +51,7 @@ public class EnterOrderRq {
     public static EnterOrderRq createNewOrderRq(long requestId, String securityIsin, long orderId, LocalDateTime entryTime, Side side, int quantity, int price, long brokerId, long shareholderId, int peakSize) {
         return builderWithFilledEssentialFields(requestId, securityIsin, orderId, entryTime, side, quantity, price, brokerId, shareholderId)
                 .requestType(OrderEntryType.NEW_ORDER)
-                .peakSize(peakSize)
+                .extensions(new Extensions(peakSize, 0, 0))
                 .build();
     }
 
@@ -63,9 +59,7 @@ public class EnterOrderRq {
     public static EnterOrderRq createUpdateOrderRq(long requestId, String securityIsin, long orderId, LocalDateTime entryTime, Side side, int quantity, int price, long brokerId, long shareholderId, int peakSize, int minimumExecutionQuantity, int stopPrice) {
         return builderWithFilledEssentialFields(requestId, securityIsin, orderId, entryTime, side, quantity, price, brokerId, shareholderId)
                 .requestType(OrderEntryType.UPDATE_ORDER)
-                .peakSize(peakSize)
-                .minimumExecutionQuantity(minimumExecutionQuantity)
-                .stopPrice(stopPrice)
+                .extensions(new Extensions(peakSize, minimumExecutionQuantity, stopPrice))
                 .build();
     }
 
@@ -73,8 +67,7 @@ public class EnterOrderRq {
     public static EnterOrderRq createUpdateOrderRq(long requestId, String securityIsin, long orderId, LocalDateTime entryTime, Side side, int quantity, int price, long brokerId, long shareholderId, int peakSize, int minimumExecutionQuantity) {
         return builderWithFilledEssentialFields(requestId, securityIsin, orderId, entryTime, side, quantity, price, brokerId, shareholderId)
                 .requestType(OrderEntryType.UPDATE_ORDER)
-                .peakSize(peakSize)
-                .minimumExecutionQuantity(minimumExecutionQuantity)
+                .extensions(new Extensions(peakSize, minimumExecutionQuantity, 0))
                 .build();
     }
 
@@ -82,7 +75,7 @@ public class EnterOrderRq {
     public static EnterOrderRq createUpdateOrderRq(long requestId, String securityIsin, long orderId, LocalDateTime entryTime, Side side, int quantity, int price, long brokerId, long shareholderId, int peakSize) {
         return builderWithFilledEssentialFields(requestId, securityIsin, orderId, entryTime, side, quantity, price, brokerId, shareholderId)
                 .requestType(OrderEntryType.UPDATE_ORDER)
-                .peakSize(peakSize)
+                .extensions(new Extensions(peakSize, 0, 0))
                 .build();
     }
 
