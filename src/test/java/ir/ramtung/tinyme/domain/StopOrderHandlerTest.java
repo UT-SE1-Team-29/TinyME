@@ -7,7 +7,6 @@ import ir.ramtung.tinyme.domain.entity.Shareholder;
 import ir.ramtung.tinyme.domain.entity.Side;
 import ir.ramtung.tinyme.domain.entity.order.Order;
 import ir.ramtung.tinyme.domain.service.OrderHandler;
-import ir.ramtung.tinyme.domain.service.matcher.ContinuousMatcher;
 import ir.ramtung.tinyme.messaging.EventPublisher;
 import ir.ramtung.tinyme.messaging.Message;
 import ir.ramtung.tinyme.messaging.event.*;
@@ -53,8 +52,6 @@ public class StopOrderHandlerTest {
     BrokerRepository brokerRepository;
     @Autowired
     ShareholderRepository shareholderRepository;
-    @Autowired
-    ContinuousMatcher continuousMatcher;
 
     @BeforeEach
     void setup() {
@@ -62,7 +59,7 @@ public class StopOrderHandlerTest {
         brokerRepository.clear();
         shareholderRepository.clear();
 
-        security = Security.builder().matcher(continuousMatcher).isin("TEST").build();
+        security = Security.builder().isin("TEST").build();
         securityRepository.addSecurity(security);
 
         broker1 = Broker.builder().brokerId(1).credit(100_000_000L).build();

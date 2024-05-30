@@ -1,11 +1,8 @@
 package ir.ramtung.tinyme.domain.entity;
 
-import ir.ramtung.tinyme.domain.service.matcher.AuctionMatcher;
-import ir.ramtung.tinyme.domain.service.matcher.Matcher;
 import ir.ramtung.tinyme.messaging.request.MatchingState;
 import lombok.Builder;
 import lombok.Getter;
-import lombok.NonNull;
 import lombok.Setter;
 
 @Getter
@@ -18,16 +15,12 @@ public class Security {
     private int lotSize = 1;
     @Builder.Default
     private OrderBook orderBook = new OrderBook();
-    @NonNull
+    @Builder.Default
     @Setter
-    private Matcher matcher;
+    private MatchingState matchingState = MatchingState.CONTINUOUS;
 
-    public MatchingState matchingState() {
-        return matcher instanceof AuctionMatcher ? MatchingState.AUCTION
-                : MatchingState.CONTINUOUS;
-    }
     public OpeningState openingState() {
-        assert matchingState() == MatchingState.AUCTION;
+        assert matchingState == MatchingState.AUCTION;
         return orderBook.calculateOpeningState();
     }
 

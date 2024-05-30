@@ -2,7 +2,6 @@ package ir.ramtung.tinyme.domain;
 
 import ir.ramtung.tinyme.domain.entity.*;
 import ir.ramtung.tinyme.domain.entity.order.Order;
-import ir.ramtung.tinyme.domain.service.matcher.DummyMatcher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -16,7 +15,7 @@ class OrderBookTest {
     private List<Order> orders;
     @BeforeEach
     void setupOrderBook() {
-        security = Security.builder().matcher(new DummyMatcher()).build();
+        security = Security.builder().build();
         Broker broker = Broker.builder().build();
         Shareholder shareholder = Shareholder.builder().build();
         shareholder.incPosition(security, 100_000);

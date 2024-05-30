@@ -5,7 +5,6 @@ import ir.ramtung.tinyme.domain.entity.*;
 import ir.ramtung.tinyme.domain.entity.order.IcebergOrder;
 import ir.ramtung.tinyme.domain.entity.order.Order;
 import ir.ramtung.tinyme.domain.service.SecurityHandler;
-import ir.ramtung.tinyme.domain.service.matcher.ContinuousMatcher;
 import ir.ramtung.tinyme.domain.service.OrderHandler;
 import ir.ramtung.tinyme.messaging.EventPublisher;
 import ir.ramtung.tinyme.messaging.Message;
@@ -46,8 +45,6 @@ public class OrderHandlerTest {
     @Autowired
     ShareholderRepository shareholderRepository;
     @Autowired
-    ContinuousMatcher continuousMatcher;
-    @Autowired
     SecurityHandler securityHandler;
 
     private Security security;
@@ -62,7 +59,7 @@ public class OrderHandlerTest {
         brokerRepository.clear();
         shareholderRepository.clear();
 
-        security = Security.builder().matcher(continuousMatcher).isin("ABC").build();
+        security = Security.builder().isin("ABC").build();
         securityRepository.addSecurity(security);
 
         shareholder = Shareholder.builder().build();
@@ -165,7 +162,7 @@ public class OrderHandlerTest {
 
     @Test
     void invalid_new_order_with_tick_and_lot_size_errors() {
-        Security aSecurity = Security.builder().matcher(continuousMatcher).isin("XXX").lotSize(10).tickSize(10).build();
+        Security aSecurity = Security.builder().isin("XXX").lotSize(10).tickSize(10).build();
         securityRepository.addSecurity(aSecurity);
         orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(1, "XXX", 1, LocalDateTime.now(), Side.SELL, 12, 1001, 1, shareholder.getShareholderId(), 0));
         ArgumentCaptor<OrderRejectedEvent> orderRejectedCaptor = ArgumentCaptor.forClass(OrderRejectedEvent.class);

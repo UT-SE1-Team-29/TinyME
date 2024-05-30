@@ -5,7 +5,6 @@ import ir.ramtung.tinyme.domain.entity.*;
 import ir.ramtung.tinyme.domain.entity.order.IcebergOrder;
 import ir.ramtung.tinyme.domain.entity.order.Order;
 import ir.ramtung.tinyme.domain.service.SecurityHandler;
-import ir.ramtung.tinyme.domain.service.matcher.ContinuousMatcher;
 import ir.ramtung.tinyme.messaging.exception.InvalidRequestException;
 import ir.ramtung.tinyme.messaging.request.DeleteOrderRq;
 import ir.ramtung.tinyme.messaging.request.EnterOrderRq;
@@ -31,13 +30,11 @@ class SecurityTest {
     private Shareholder shareholder;
     private List<Order> orders;
     @Autowired
-    ContinuousMatcher continuousMatcher;
-    @Autowired
     SecurityHandler securityHandler;
 
     @BeforeEach
     void setupOrderBook() {
-        security = Security.builder().matcher(continuousMatcher).build();
+        security = Security.builder().build();
         broker = Broker.builder().brokerId(0).credit(1_000_000L).build();
         shareholder = Shareholder.builder().shareholderId(0).build();
         shareholder.incPosition(security, 100_000);
@@ -112,7 +109,7 @@ class SecurityTest {
 
     @Test
     void increasing_iceberg_peak_size_changes_priority() {
-        security = Security.builder().matcher(continuousMatcher).build();
+        security = Security.builder().build();
         broker = Broker.builder().credit(1_000_000L).build();
         orders = Arrays.asList(
                 new Order(1, security, BUY, 304, 15700, broker, shareholder),
@@ -130,7 +127,7 @@ class SecurityTest {
 
     @Test
     void decreasing_iceberg_quantity_to_amount_larger_than_peak_size_does_not_changes_priority() {
-        security = Security.builder().matcher(continuousMatcher).build();
+        security = Security.builder().build();
         broker = Broker.builder().build();
         orders = Arrays.asList(
                 new Order(1, security, BUY, 304, 15700, broker, shareholder),
@@ -147,7 +144,7 @@ class SecurityTest {
 
     @Test
     void update_iceberg_that_loses_priority_with_no_trade_works() {
-        security = Security.builder().matcher(continuousMatcher).isin("TEST").build();
+        security = Security.builder().isin("TEST").build();
         broker = Broker.builder().brokerId(1).credit(100).build();
 
         security.getOrderBook().enqueue(
@@ -163,7 +160,7 @@ class SecurityTest {
 
     @Test
     void update_iceberg_order_decrease_peak_size() {
-        security = Security.builder().matcher(continuousMatcher).isin("TEST").build();
+        security = Security.builder().isin("TEST").build();
         security.getOrderBook().enqueue(
                 new IcebergOrder(1, security, BUY, 20, 10, broker, shareholder, 10)
         );
@@ -176,7 +173,7 @@ class SecurityTest {
 
     @Test
     void update_iceberg_order_price_leads_to_match_as_new_order() throws InvalidRequestException {
-        security = Security.builder().matcher(continuousMatcher).isin("TEST").build();
+        security = Security.builder().isin("TEST").build();
         shareholder.incPosition(security, 1_000);
         orders = List.of(
                 new Order(1, security, BUY, 15, 10, broker, shareholder),

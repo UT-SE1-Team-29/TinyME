@@ -18,11 +18,11 @@ public final class MatchResult {
     private final List<Order> activatedOrders = new LinkedList<>();
 
     public static MatchResult auctionExecuted(List<Trade> trades) {
-        return new MatchResult(MatchingOutcome.EXECUTED, null, trades);
+        return new MatchResult(null, trades);
     }
 
     public static MatchResult executed(Order remainder, List<Trade> trades) {
-        return new MatchResult(MatchingOutcome.EXECUTED, remainder, trades);
+        return new MatchResult(remainder, trades);
     }
 
     public static MatchResult notEnoughCredit() {
@@ -40,8 +40,8 @@ public final class MatchResult {
         return new MatchResult(MatchingOutcome.MINIMUM_QUANTITY_CONDITION_FOR_AUCTION_MODE, null);
     }
 
-    private MatchResult(MatchingOutcome outcome, Order remainder, List<Trade> trades) {
-        this(outcome, remainder);
+    private MatchResult(Order remainder, List<Trade> trades) {
+        this(MatchingOutcome.EXECUTED, remainder);
         this.trades.addAll(trades);
     }
 

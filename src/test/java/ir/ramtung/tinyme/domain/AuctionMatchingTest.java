@@ -8,7 +8,6 @@ import ir.ramtung.tinyme.domain.entity.Side;
 import ir.ramtung.tinyme.domain.entity.order.StopOrder;
 import ir.ramtung.tinyme.domain.service.OrderHandler;
 import ir.ramtung.tinyme.domain.service.SecurityConfigurationHandler;
-import ir.ramtung.tinyme.domain.service.matcher.AuctionMatcher;
 import ir.ramtung.tinyme.messaging.EventPublisher;
 import ir.ramtung.tinyme.messaging.Message;
 import ir.ramtung.tinyme.messaging.event.*;
@@ -51,8 +50,6 @@ public class AuctionMatchingTest {
     BrokerRepository brokerRepository;
     @Autowired
     ShareholderRepository shareholderRepository;
-    @Autowired
-    AuctionMatcher auctionMatcher;
 
     Security security;
     Broker broker1;
@@ -62,7 +59,7 @@ public class AuctionMatchingTest {
 
     @BeforeEach
     void setup() {
-        security = Security.builder().matcher(auctionMatcher).build();
+        security = Security.builder().matchingState(MatchingState.AUCTION).build();
         securityRepository.addSecurity(security);
 
         broker1 = Broker.builder().brokerId(1).credit(1_000_000L).build();

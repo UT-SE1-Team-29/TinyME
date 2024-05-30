@@ -3,8 +3,6 @@ package ir.ramtung.tinyme.domain;
 import ir.ramtung.tinyme.config.MockedJMSTestConfig;
 import ir.ramtung.tinyme.domain.entity.Security;
 import ir.ramtung.tinyme.domain.service.SecurityConfigurationHandler;
-import ir.ramtung.tinyme.domain.service.matcher.AuctionMatcher;
-import ir.ramtung.tinyme.domain.service.matcher.ContinuousMatcher;
 import ir.ramtung.tinyme.messaging.EventPublisher;
 import ir.ramtung.tinyme.messaging.event.SecurityStateChangedEvent;
 import ir.ramtung.tinyme.messaging.request.ChangeMatchingStateRq;
@@ -32,21 +30,17 @@ public class MatchingStateTest {
     EventPublisher eventPublisher;
     @Autowired
     SecurityRepository securityRepository;
-    @Autowired
-    ContinuousMatcher continuousMatcher;
-    @Autowired
-    AuctionMatcher auctionMatcher;
 
     @Test
     void matching_state_change_to_auction() {
-        var security = Security.builder().matcher(continuousMatcher).isin("ABC").build();
+        var security = Security.builder().isin("ABC").build();
         securityRepository.addSecurity(security);
         securityConfigurationHandler.handleMatchingStateRq(new ChangeMatchingStateRq(
                 1,
                 LocalDateTime.now(),
                 "ABC",
                 MatchingState.AUCTION));
-        assertThat(security.getMatcher()).isEqualTo(auctionMatcher);
+        assertThat(security.getMatchingState()).isEqualTo(MatchingState.AUCTION);
         verify(eventPublisher).publish(any(SecurityStateChangedEvent.class));
     }
 }

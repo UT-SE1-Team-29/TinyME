@@ -4,14 +4,13 @@ import ir.ramtung.tinyme.domain.entity.*;
 import ir.ramtung.tinyme.domain.entity.order.IcebergOrder;
 import ir.ramtung.tinyme.domain.entity.order.Order;
 import ir.ramtung.tinyme.domain.entity.order.StopOrder;
-import ir.ramtung.tinyme.domain.service.matcher.AuctionMatcher;
-import ir.ramtung.tinyme.domain.service.matcher.ContinuousMatcher;
 import ir.ramtung.tinyme.messaging.Message;
 import ir.ramtung.tinyme.messaging.exception.InvalidRequestException;
 import ir.ramtung.tinyme.messaging.request.DeleteOrderRq;
 import ir.ramtung.tinyme.messaging.request.EnterOrderRq;
-import ir.ramtung.tinyme.messaging.request.MatchingState;
 import ir.ramtung.tinyme.messaging.request.Extensions;
+import ir.ramtung.tinyme.messaging.request.MatchingState;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -19,7 +18,10 @@ import java.util.LinkedList;
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class SecurityHandler {
+    final Matcher matcher;
+
     public MatchResult newOrder(Security security, EnterOrderRq enterOrderRq, Broker broker, Shareholder shareholder) {
         var orderBook = security.getOrderBook();
         if (enterOrderRq.getSide() == Side.SELL &&
@@ -30,7 +32,7 @@ public class SecurityHandler {
         Order order = getOrder(enterOrderRq, security, broker, shareholder);
         var extensions = enterOrderRq.getExtensions();
 
-        return switch (security.matchingState()) {
+        return switch (security.getMatchingState()) {
             case CONTINUOUS -> handleNewOrderByContinuousStrategy(order, extensions);
             case AUCTION -> handleNewOrderByAuctionStrategy(order, extensions);
         };
@@ -59,16 +61,15 @@ public class SecurityHandler {
             order.getBroker().increaseCreditBy(order.getValue());
         }
 
-        return switch (security.matchingState()) {
+        return switch (security.getMatchingState()) {
             case CONTINUOUS -> handleUpdatedOrderByContinuousStrategy(security, updateOrderRq, order);
             case AUCTION -> handleUpdatedOrderByAuctionStrategy(security, updateOrderRq, order);
         };
     }
 
     public MatchResult executeAuction(Security security) {
-        assert security.matchingState() == MatchingState.AUCTION;
-        var auctionMatcher = (AuctionMatcher) security.getMatcher();
-        var matchResult = auctionMatcher.execute(security);
+        assert security.getMatchingState() == MatchingState.AUCTION;
+        var matchResult = matcher.executeAuction(security);
 
         updateLastTransactionPrice(security, matchResult);
 
@@ -163,18 +164,17 @@ public class SecurityHandler {
         if (extensions.minimumExecutionQuantity() != 0) {
             return MatchResult.minimumQuantityConditionForAuctionMode();
         }
-        return order.getSecurity().getMatcher().executeWithoutMatching(order);
+        return matcher.executeWithoutMatching(order);
     }
 
     private MatchResult handleNewOrderByContinuousStrategy(Order order, Extensions extensions) {
         var security = order.getSecurity();
-        var matcher = security.getMatcher();
         List<Order> activatedOrders = new ArrayList<>();
         if (order instanceof StopOrder stopOrder && tryActivateStopOrder(security, stopOrder)) {
             activatedOrders.add(stopOrder);
         }
 
-        var matchResult = ((ContinuousMatcher) matcher).executeWithMinimumQuantityCondition(order, extensions.minimumExecutionQuantity());
+        var matchResult = matcher.executeWithMinimumQuantityCondition(order, extensions.minimumExecutionQuantity());
 
         updateLastTransactionPrice(security, matchResult);
 
@@ -184,10 +184,7 @@ public class SecurityHandler {
     }
 
     private MatchResult handleUpdatedOrderByContinuousStrategy(Security security, EnterOrderRq updateOrderRq, Order order) {
-        var matcher = security.getMatcher();
         var orderBook = security.getOrderBook();
-        assert matcher instanceof ContinuousMatcher;
-        var continuousMatcher = (ContinuousMatcher) matcher;
 
         Order originalOrder = order.snapshot();
         order.updateFromRequest(updateOrderRq);
@@ -206,7 +203,7 @@ public class SecurityHandler {
             activatedOrders.add(stopOrder);
         }
 
-        MatchResult matchResult = continuousMatcher.execute(order);
+        MatchResult matchResult = matcher.execute(order);
         if (matchResult.outcome() != MatchingOutcome.EXECUTED) {
             orderBook.enqueue(originalOrder);
             if (updateOrderRq.getSide() == Side.BUY) {
@@ -223,7 +220,6 @@ public class SecurityHandler {
 
     private MatchResult handleUpdatedOrderByAuctionStrategy(Security security, EnterOrderRq updateOrderRq, Order order) {
         var orderBook = security.getOrderBook();
-        var matcher = security.getMatcher();
         orderBook.removeByOrderId(updateOrderRq.getSide(), updateOrderRq.getOrderId());
         order.updateFromRequest(updateOrderRq);
         return matcher.executeWithoutMatching(order);

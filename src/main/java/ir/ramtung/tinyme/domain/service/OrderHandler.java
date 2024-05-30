@@ -61,7 +61,7 @@ public class OrderHandler {
             else
                 eventPublisher.publish(new OrderUpdatedEvent(enterOrderRq.getRequestId(), enterOrderRq.getOrderId()));
 
-            if (security.matchingState() == MatchingState.AUCTION) {
+            if (security.getMatchingState() == MatchingState.AUCTION) {
                 var openingState = security.openingState();
                 eventPublisher.publish(new OpeningPriceEvent(security.getIsin(), openingState.price(), openingState.tradableQuantity()));
             }
@@ -91,7 +91,7 @@ public class OrderHandler {
 
     public void handleAuctionOpening(ChangeMatchingStateRq changeMatchingStateRq) {
         var security = securityRepository.findSecurityByIsin(changeMatchingStateRq.getSecurityIsin());
-        assert security.matchingState() == MatchingState.AUCTION;
+        assert security.getMatchingState() == MatchingState.AUCTION;
         MatchResult matchResult = securityHandler.executeAuction(security);
 
         if (matchResult.trades().isEmpty()) {
