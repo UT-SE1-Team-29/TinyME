@@ -73,10 +73,6 @@ public final class MatchResult {
         return (LinkedList<Trade>) trades;
     }
 
-    public List<Order> activatedOrders() {
-        return activatedOrders;
-    }
-
     @Override
     public boolean equals(Object obj) {
         if (obj == this) return true;

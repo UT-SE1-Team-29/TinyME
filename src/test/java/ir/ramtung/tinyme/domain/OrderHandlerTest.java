@@ -30,6 +30,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
+import static ir.ramtung.tinyme.domain.entity.Side.BUY;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 
@@ -672,6 +673,20 @@ public class OrderHandlerTest {
         verify(eventPublisher).publish(argumentCaptor.capture());
         assertThat(argumentCaptor.getValue().getErrors()).containsExactly(Message.MINIMUM_EXECUTION_QUANTITY_FAILED);
         assertThat(broker1.getCredit()).isEqualTo(originalCredit);
+    }
+
+    @Test
+    void updating_non_existing_order_fails() {
+        EnterOrderRq updateOrderRq = EnterOrderRq.builder()
+                .requestId(1)
+                .securityIsin(security.getIsin())
+                .orderId(6)
+                .side(BUY)
+                .quantity(350)
+                .price(15700)
+                .build();
+        orderHandler.handleEnterOrder(updateOrderRq);
+        verify(eventPublisher).publish(any(OrderRejectedEvent.class));;
     }
 
 }

@@ -68,7 +68,6 @@ public class ContinuousMatchingStrategy implements MatchingStrategy {
         }
         security.updateLastTransactionPrice(matchResult);
         activatedOrders.addAll(security.tryActivateAll());
-
         activatedOrders.forEach(matchResult::addActivatedOrder);
 
         return matchResult;

@@ -27,24 +27,36 @@ public class OrderHandler {
     final ShareholderRepository shareholderRepository;
     final EventPublisher eventPublisher;
     final Matcher matcher;
-    final Map<MatchingState, MatchingStrategy> matchingStrategies;
+    final Map<MatchingState, MatchingStrategy> matchingStrategies; // Node: associated bean needs further configurations whenever new matching strategies are added
 
     public void handleEnterOrder(EnterOrderRq enterOrderRq) {
         try {
             validateEnterOrderRq(enterOrderRq);
-
-            Security security = securityRepository.findSecurityByIsin(enterOrderRq.getSecurityIsin());
-            Broker broker = brokerRepository.findBrokerById(enterOrderRq.getBrokerId());
-            Shareholder shareholder = shareholderRepository.findShareholderById(enterOrderRq.getShareholderId());
-
-            MatchResult matchResult = switch (enterOrderRq.getRequestType()) {
-                case NEW_ORDER -> processNewOrder(security, enterOrderRq, broker, shareholder);
-                case UPDATE_ORDER -> processUpdateOrder(security, enterOrderRq);
-            };
-            publishEnterOrderRqMessages(enterOrderRq, matchResult, security);
         } catch (InvalidRequestException ex) {
             ex.publishEvent(eventPublisher, enterOrderRq);
+            return;
         }
+
+        Security security = securityRepository.findSecurityByIsin(enterOrderRq.getSecurityIsin());
+        Broker broker = brokerRepository.findBrokerById(enterOrderRq.getBrokerId());
+        Shareholder shareholder = shareholderRepository.findShareholderById(enterOrderRq.getShareholderId());
+
+        Order order = getOrder(enterOrderRq, security, broker, shareholder);
+
+        try {
+            if (enterOrderRq.getRequestType() == OrderEntryType.UPDATE_ORDER) {
+                validateUpdateOrderRequest(order, enterOrderRq.getExtensions());
+            }
+        } catch (InvalidRequestException ex) {
+            ex.publishEvent(eventPublisher, enterOrderRq);
+            return;
+        }
+
+        MatchResult matchResult = switch (enterOrderRq.getRequestType()) {
+            case NEW_ORDER -> processNewOrder(order, enterOrderRq.getExtensions());
+            case UPDATE_ORDER -> processUpdateOrder(order, enterOrderRq);
+        };
+        publishEnterOrderRqMessages(enterOrderRq, matchResult, security);
     }
 
     public void handleDeleteOrder(DeleteOrderRq deleteOrderRq) {
@@ -71,17 +83,27 @@ public class OrderHandler {
         publishAuctionMessages(changeMatchingStateRq, matchResult);
     }
 
-    protected MatchResult processNewOrder(Security security, EnterOrderRq enterOrderRq, Broker broker, Shareholder shareholder) {
-        var orderBook = security.getOrderBook();
-        if (enterOrderRq.getSide() == Side.SELL &&
-                !shareholder.hasEnoughPositionsOn(security,
-                        orderBook.totalSellQuantityByShareholder(shareholder) + enterOrderRq.getQuantity())) {
+    protected MatchResult processNewOrder(Order order, Extensions extensions) {
+        var security = order.getSecurity();
+        if (doesNotHaveEnoughPositions(order)) {
             return MatchResult.notEnoughPositions();
         }
-        Order order = buildOrder(enterOrderRq, security, broker, shareholder);
 
         MatchingStrategy matchingStrategy = matchingStrategies.get(security.getMatchingState());
-        return matchingStrategy.handleNewOrder(order, enterOrderRq.getExtensions());
+        return matchingStrategy.handleNewOrder(order, extensions);
+    }
+
+    protected MatchResult processUpdateOrder(Order order, EnterOrderRq updateOrderRq) {
+        if (doesNotHaveEnoughPositions(order, updateOrderRq)) {
+            return MatchResult.notEnoughPositions();
+        }
+
+        if (updateOrderRq.getSide() == Side.BUY) {
+            order.getBroker().increaseCreditBy(order.getValue());
+        }
+
+        MatchingStrategy matchingStrategy = matchingStrategies.get(order.getSecurity().getMatchingState());
+        return matchingStrategy.handleUpdateOrder(order, updateOrderRq);
     }
 
     protected void processDeleteOrder(Security security, DeleteOrderRq deleteOrderRq) throws InvalidRequestException {
@@ -92,23 +114,6 @@ public class OrderHandler {
         if (order.getSide() == Side.BUY)
             order.getBroker().increaseCreditBy(order.getValue());
         orderBook.removeByOrderId(deleteOrderRq.getSide(), deleteOrderRq.getOrderId());
-    }
-
-    protected MatchResult processUpdateOrder(Security security, EnterOrderRq updateOrderRq) throws InvalidRequestException {
-        var orderBook = security.getOrderBook();
-        Order order = orderBook.findByOrderId(updateOrderRq.getSide(), updateOrderRq.getOrderId());
-
-        validateUpdateOrderRequest(updateOrderRq.getExtensions(), order);
-        if (doesNotHaveEnoughPositions(security, updateOrderRq, order)) {
-            return MatchResult.notEnoughPositions();
-        }
-
-        if (updateOrderRq.getSide() == Side.BUY) {
-            order.getBroker().increaseCreditBy(order.getValue());
-        }
-
-        MatchingStrategy matchingStrategy = matchingStrategies.get(security.getMatchingState());
-        return matchingStrategy.handleUpdateOrder(order, updateOrderRq);
     }
 
     private void validateEnterOrderRq(EnterOrderRq enterOrderRq) throws InvalidRequestException {
@@ -148,6 +153,14 @@ public class OrderHandler {
             throw new InvalidRequestException(errors);
     }
 
+    private Order getOrder(EnterOrderRq enterOrderRq, Security security, Broker broker, Shareholder shareholder) {
+        return switch (enterOrderRq.getRequestType()) {
+            case NEW_ORDER -> buildOrder(enterOrderRq, security, broker, shareholder);
+            case UPDATE_ORDER ->
+                    security.getOrderBook().findByOrderId(enterOrderRq.getSide(), enterOrderRq.getOrderId());
+        };
+    }
+
     private Order buildOrder(EnterOrderRq enterOrderRq, Security security, Broker broker, Shareholder shareholder) {
         var extensions = enterOrderRq.getExtensions();
         if (extensions.peakSize() > 0)
@@ -185,14 +198,24 @@ public class OrderHandler {
             throw new InvalidRequestException(errors);
     }
 
-    private boolean doesNotHaveEnoughPositions(Security security, EnterOrderRq updateOrderRq, Order order) {
+    private boolean doesNotHaveEnoughPositions(Order order, EnterOrderRq updateOrderRq) {
+        var security = order.getSecurity();
         var orderBook = security.getOrderBook();
         return updateOrderRq.getSide() == Side.SELL &&
                 !order.getShareholder().hasEnoughPositionsOn(security,
                         orderBook.totalSellQuantityByShareholder(order.getShareholder()) - order.getQuantity() + updateOrderRq.getQuantity());
     }
 
-    private void validateUpdateOrderRequest(Extensions newExtensions, Order order) throws InvalidRequestException {
+    private static boolean doesNotHaveEnoughPositions(Order order) {
+        var security = order.getSecurity();
+        var shareholder = order.getShareholder();
+        var quantity = order.getQuantity();
+        return order.getSide() == Side.SELL &&
+                !shareholder.hasEnoughPositionsOn(security,
+                        security.getOrderBook().totalSellQuantityByShareholder(shareholder) + quantity);
+    }
+
+    private void validateUpdateOrderRequest(Order order, Extensions newExtensions) throws InvalidRequestException {
         if (order == null)
             throw new InvalidRequestException(Message.ORDER_ID_NOT_FOUND);
         if ((order instanceof IcebergOrder) && newExtensions.peakSize() == 0)
