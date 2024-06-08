@@ -102,7 +102,7 @@ public final class MatchResult {
                 "trades=" + trades + ']';
     }
 
-    public void publishOutcome(EventPublisher eventPublisher, EnterOrderRq enterOrderRq) {
+    public void publishOutcomeEvent(EventPublisher eventPublisher, EnterOrderRq enterOrderRq) {
         Event event = switch(outcome) {
             case NOT_ENOUGH_CREDIT -> new OrderRejectedEvent(enterOrderRq.getRequestId(), enterOrderRq.getOrderId(), List.of(Message.BUYER_HAS_NOT_ENOUGH_CREDIT));
             case NOT_ENOUGH_POSITIONS -> new OrderRejectedEvent(enterOrderRq.getRequestId(), enterOrderRq.getOrderId(), List.of(Message.SELLER_HAS_NOT_ENOUGH_POSITIONS));
