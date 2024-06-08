@@ -118,4 +118,10 @@ public class Order {
     public boolean isActive() {
         return true;
     }
+
+    public void rollbackCreditIfBuyOrder() {
+        if (side == Side.BUY) {
+            broker.decreaseCreditBy(getValue());
+        }
+    }
 }

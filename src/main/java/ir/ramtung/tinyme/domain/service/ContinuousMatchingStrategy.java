@@ -31,7 +31,6 @@ public class ContinuousMatchingStrategy implements MatchingStrategy {
         var matchResult = matcher.executeWithMinimumQuantityCondition(order, extensions.minimumExecutionQuantity());
 
         security.updateLastTransactionPrice(matchResult);
-
         activatedOrders.addAll(security.tryActivateAll());
         activatedOrders.forEach(matchResult::addActivatedOrder);
         return matchResult;
@@ -45,9 +44,7 @@ public class ContinuousMatchingStrategy implements MatchingStrategy {
         Order originalOrder = order.snapshot();
         order.updateFromRequest(updateOrderRq);
         if (!doesLosePriority(originalOrder, updateOrderRq)) {
-            if (updateOrderRq.getSide() == Side.BUY) {
-                order.getBroker().decreaseCreditBy(order.getValue());
-            }
+            order.rollbackCreditIfBuyOrder();
             return MatchResult.executed(null, List.of());
         }
 
@@ -62,9 +59,7 @@ public class ContinuousMatchingStrategy implements MatchingStrategy {
         MatchResult matchResult = matcher.execute(order);
         if (matchResult.outcome() != MatchingOutcome.EXECUTED) {
             orderBook.enqueue(originalOrder);
-            if (updateOrderRq.getSide() == Side.BUY) {
-                originalOrder.getBroker().decreaseCreditBy(originalOrder.getValue());
-            }
+            originalOrder.rollbackCreditIfBuyOrder();
         }
         security.updateLastTransactionPrice(matchResult);
         activatedOrders.addAll(security.tryActivateAll());
