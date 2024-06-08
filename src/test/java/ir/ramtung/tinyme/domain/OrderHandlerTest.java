@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 
 import static ir.ramtung.tinyme.domain.entity.Side.BUY;
+import static ir.ramtung.tinyme.domain.entity.Side.SELL;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 
@@ -687,6 +688,46 @@ public class OrderHandlerTest {
                 .build();
         orderHandler.handleEnterOrder(updateOrderRq);
         verify(eventPublisher).publish(any(OrderRejectedEvent.class));;
+    }
+
+    @Test
+    void delete_order_works() {
+        var orders = Arrays.asList(
+                new Order(1, security, BUY, 304, 15700, broker1, shareholder),
+                new Order(2, security, BUY, 43, 15500, broker1, shareholder),
+                new Order(3, security, BUY, 445, 15450, broker1, shareholder),
+                new Order(4, security, BUY, 526, 15450, broker1, shareholder),
+                new Order(5, security, BUY, 1000, 15400, broker1, shareholder),
+                new Order(6, security, Side.SELL, 350, 15800, broker1, shareholder),
+                new Order(7, security, Side.SELL, 285, 15810, broker1, shareholder),
+                new Order(8, security, Side.SELL, 800, 15810, broker1, shareholder),
+                new Order(9, security, Side.SELL, 340, 15820, broker1, shareholder),
+                new Order(10, security, Side.SELL, 65, 15820, broker1, shareholder)
+        );
+        orders.forEach(order -> security.getOrderBook().enqueue(order));
+        DeleteOrderRq deleteOrderRq = DeleteOrderRq.builder()
+                .requestId(1)
+                .securityIsin(security.getIsin())
+                .side(SELL)
+                .orderId(6)
+                .build();
+        orderHandler.handleDeleteOrder(deleteOrderRq);
+        verify(eventPublisher).publish(any(OrderDeletedEvent.class));
+        assertThat(security.getOrderBook().getBuyQueue()).isEqualTo(orders.subList(0, 5));
+        assertThat(security.getOrderBook().getSellQueue()).isEqualTo(orders.subList(6, 10));
+    }
+
+    @Test
+    void deleting_non_existing_order_fails() {
+        DeleteOrderRq deleteOrderRq = DeleteOrderRq.builder()
+                .requestId(1)
+                .securityIsin(security.getIsin())
+                .side(SELL)
+                .orderId(1)
+                .build();
+        orderHandler.handleDeleteOrder(deleteOrderRq);
+        verify(eventPublisher, never()).publish(isA(OrderDeletedEvent.class));
+        verify(eventPublisher).publish(any(OrderRejectedEvent.class));
     }
 
 }

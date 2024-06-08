@@ -53,8 +53,8 @@ public class OrderHandler {
         }
 
         MatchResult matchResult = switch (enterOrderRq.getRequestType()) {
-            case NEW_ORDER -> processNewOrder(order, enterOrderRq.getExtensions());
-            case UPDATE_ORDER -> processUpdateOrder(order, enterOrderRq);
+            case NEW_ORDER -> handleNewOrder(order, enterOrderRq.getExtensions());
+            case UPDATE_ORDER -> handleUpdateOrder(order, enterOrderRq);
         };
         publishEnterOrderRqMessages(enterOrderRq, matchResult, security);
     }
@@ -63,7 +63,12 @@ public class OrderHandler {
         try {
             validateDeleteOrderRq(deleteOrderRq);
             Security security = securityRepository.findSecurityByIsin(deleteOrderRq.getSecurityIsin());
-            processDeleteOrder(security, deleteOrderRq);
+            Order order = security.getOrderBook().findByOrderId(deleteOrderRq.getSide(), deleteOrderRq.getOrderId());
+            if (order == null)
+                throw new InvalidRequestException(Message.ORDER_ID_NOT_FOUND);
+            if (order.getSide() == Side.BUY)
+                order.getBroker().increaseCreditBy(order.getValue());
+            security.getOrderBook().removeByOrderId(deleteOrderRq.getSide(), deleteOrderRq.getOrderId());
             eventPublisher.publish(new OrderDeletedEvent(deleteOrderRq.getRequestId(), deleteOrderRq.getOrderId()));
         } catch (InvalidRequestException ex) {
             ex.publishEvent(eventPublisher, deleteOrderRq);
@@ -72,7 +77,6 @@ public class OrderHandler {
 
     public void handleAuctionOpening(ChangeMatchingStateRq changeMatchingStateRq) {
         var security = securityRepository.findSecurityByIsin(changeMatchingStateRq.getSecurityIsin());
-        assert security.getMatchingState() == MatchingState.AUCTION;
         MatchResult matchResult = matcher.executeAuction(security);
 
         security.updateLastTransactionPrice(matchResult);
@@ -83,7 +87,7 @@ public class OrderHandler {
         publishAuctionMessages(changeMatchingStateRq, matchResult);
     }
 
-    protected MatchResult processNewOrder(Order order, Extensions extensions) {
+    protected MatchResult handleNewOrder(Order order, Extensions extensions) {
         var security = order.getSecurity();
         if (doesNotHaveEnoughPositions(order)) {
             return MatchResult.notEnoughPositions();
@@ -93,7 +97,7 @@ public class OrderHandler {
         return matchingStrategy.handleNewOrder(order, extensions);
     }
 
-    protected MatchResult processUpdateOrder(Order order, EnterOrderRq updateOrderRq) {
+    protected MatchResult handleUpdateOrder(Order order, EnterOrderRq updateOrderRq) {
         if (doesNotHaveEnoughPositions(order, updateOrderRq)) {
             return MatchResult.notEnoughPositions();
         }
@@ -104,16 +108,6 @@ public class OrderHandler {
 
         MatchingStrategy matchingStrategy = matchingStrategies.get(order.getSecurity().getMatchingState());
         return matchingStrategy.handleUpdateOrder(order, updateOrderRq);
-    }
-
-    protected void processDeleteOrder(Security security, DeleteOrderRq deleteOrderRq) throws InvalidRequestException {
-        var orderBook = security.getOrderBook();
-        Order order = orderBook.findByOrderId(deleteOrderRq.getSide(), deleteOrderRq.getOrderId());
-        if (order == null)
-            throw new InvalidRequestException(Message.ORDER_ID_NOT_FOUND);
-        if (order.getSide() == Side.BUY)
-            order.getBroker().increaseCreditBy(order.getValue());
-        orderBook.removeByOrderId(deleteOrderRq.getSide(), deleteOrderRq.getOrderId());
     }
 
     private void validateEnterOrderRq(EnterOrderRq enterOrderRq) throws InvalidRequestException {

@@ -8,8 +8,6 @@ import ir.ramtung.tinyme.domain.service.Matcher;
 import ir.ramtung.tinyme.domain.service.MatchingStrategy;
 import ir.ramtung.tinyme.domain.service.OrderHandler;
 import ir.ramtung.tinyme.messaging.EventPublisher;
-import ir.ramtung.tinyme.messaging.exception.InvalidRequestException;
-import ir.ramtung.tinyme.messaging.request.DeleteOrderRq;
 import ir.ramtung.tinyme.messaging.request.EnterOrderRq;
 import ir.ramtung.tinyme.messaging.request.Extensions;
 import ir.ramtung.tinyme.messaging.request.MatchingState;
@@ -28,7 +26,8 @@ import java.util.Map;
 
 import static ir.ramtung.tinyme.domain.entity.Side.BUY;
 import static ir.ramtung.tinyme.domain.entity.Side.SELL;
-import static org.assertj.core.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNoException;
 
 @SpringBootTest
 @Import(MockedJMSTestConfig.class)
@@ -83,7 +82,7 @@ class SecurityTest extends OrderHandler{
                 .price(15450)
                 .build();
         var order = security.getOrderBook().findByOrderId(side, orderId);
-        assertThatNoException().isThrownBy(() -> processUpdateOrder(order, updateOrderRq));
+        assertThatNoException().isThrownBy(() -> handleUpdateOrder(order, updateOrderRq));
         assertThat(security.getOrderBook().getBuyQueue().get(2).getQuantity()).isEqualTo(440);
         assertThat(security.getOrderBook().getBuyQueue().get(2).getOrderId()).isEqualTo(3);
     }
@@ -101,7 +100,7 @@ class SecurityTest extends OrderHandler{
                 .price(15450)
                 .build();
         var order = security.getOrderBook().findByOrderId(side, orderId);
-        assertThatNoException().isThrownBy(() -> processUpdateOrder(order, updateOrderRq));
+        assertThatNoException().isThrownBy(() -> handleUpdateOrder(order, updateOrderRq));
         assertThat(security.getOrderBook().getBuyQueue().get(3).getQuantity()).isEqualTo(450);
         assertThat(security.getOrderBook().getBuyQueue().get(3).getOrderId()).isEqualTo(3);
     }
@@ -119,7 +118,7 @@ class SecurityTest extends OrderHandler{
                 .price(15450)
                 .build();
         var order = security.getOrderBook().findByOrderId(side, orderId);
-        assertThatNoException().isThrownBy(() -> processUpdateOrder(order, updateOrderRq));
+        assertThatNoException().isThrownBy(() -> handleUpdateOrder(order, updateOrderRq));
         assertThat(security.getOrderBook().getBuyQueue().get(3).getQuantity()).isEqualTo(300);
         assertThat(security.getOrderBook().getBuyQueue().get(3).getPrice()).isEqualTo(15450);
         assertThat(security.getOrderBook().getBuyQueue().get(3).getOrderId()).isEqualTo(1);
@@ -140,32 +139,8 @@ class SecurityTest extends OrderHandler{
                 .build();
         var order = security.getOrderBook().findByOrderId(side, orderId);
         assertThatNoException().isThrownBy(() ->
-                assertThat(processUpdateOrder(order, updateOrderRq).trades()).isNotEmpty()
+                assertThat(handleUpdateOrder(order, updateOrderRq).trades()).isNotEmpty()
         );
-    }
-
-    @Test
-    void delete_order_works() {
-        DeleteOrderRq deleteOrderRq = DeleteOrderRq.builder()
-                .requestId(1)
-                .securityIsin(security.getIsin())
-                .side(SELL)
-                .orderId(6)
-                .build();
-        assertThatNoException().isThrownBy(() -> processDeleteOrder(security, deleteOrderRq));
-        assertThat(security.getOrderBook().getBuyQueue()).isEqualTo(orders.subList(0, 5));
-        assertThat(security.getOrderBook().getSellQueue()).isEqualTo(orders.subList(6, 10));
-    }
-
-    @Test
-    void deleting_non_existing_order_fails() {
-        DeleteOrderRq deleteOrderRq = DeleteOrderRq.builder()
-                .requestId(1)
-                .securityIsin(security.getIsin())
-                .side(SELL)
-                .orderId(1)
-                .build();
-        assertThatExceptionOfType(InvalidRequestException.class).isThrownBy(() -> processDeleteOrder(security, deleteOrderRq));
     }
 
     @Test
@@ -189,7 +164,7 @@ class SecurityTest extends OrderHandler{
                 .price(15450)
                 .extensions(new Extensions(150, 0, 0))
                 .build();
-        assertThatNoException().isThrownBy(() -> processUpdateOrder(orders.get(2), updateOrderRq));
+        assertThatNoException().isThrownBy(() -> handleUpdateOrder(orders.get(2), updateOrderRq));
         assertThat(security.getOrderBook().getBuyQueue().get(3).getQuantity()).isEqualTo(150);
         assertThat(security.getOrderBook().getBuyQueue().get(3).getOrderId()).isEqualTo(3);
     }
@@ -215,7 +190,7 @@ class SecurityTest extends OrderHandler{
                 .price(15450)
                 .extensions(new Extensions(100, 0, 0))
                 .build();
-        assertThatNoException().isThrownBy(() -> processUpdateOrder(orders.get(2), updateOrderRq));
+        assertThatNoException().isThrownBy(() -> handleUpdateOrder(orders.get(2), updateOrderRq));
         assertThat(security.getOrderBook().getBuyQueue().get(2).getOrderId()).isEqualTo(3);
     }
 
@@ -238,7 +213,7 @@ class SecurityTest extends OrderHandler{
                 .extensions(new Extensions(10, 0, 0))
                 .build();
         var order = security.getOrderBook().findByOrderId(BUY, 1);
-        assertThatNoException().isThrownBy(() -> processUpdateOrder(order, updateReq));
+        assertThatNoException().isThrownBy(() -> handleUpdateOrder(order, updateReq));
 
         assertThat(broker.getCredit()).isEqualTo(0);
         assertThat(security.getOrderBook().getBuyQueue().get(0).getOrderId()).isEqualTo(1);
@@ -261,7 +236,7 @@ class SecurityTest extends OrderHandler{
                 .extensions(new Extensions(5, 0, 0))
                 .build();
         var order = security.getOrderBook().findByOrderId(BUY, 1);
-        assertThatNoException().isThrownBy(() -> processUpdateOrder(order, updateReq));
+        assertThatNoException().isThrownBy(() -> handleUpdateOrder(order, updateReq));
 
         assertThat(security.getOrderBook().getBuyQueue().get(0).getQuantity()).isEqualTo(5);
     }
@@ -287,7 +262,7 @@ class SecurityTest extends OrderHandler{
                 .price(10)
                 .extensions(new Extensions(10, 0, 0))
                 .build();
-        MatchResult result = processUpdateOrder(orders.get(3), updateReq);
+        MatchResult result = handleUpdateOrder(orders.get(3), updateReq);
 
         assertThat(result.outcome()).isEqualTo(MatchingOutcome.EXECUTED);
         assertThat(result.trades()).hasSize(2);
