@@ -23,6 +23,7 @@ public class OrderHandler {
     final ShareholderRepository shareholderRepository;
     public final EventPublisher eventPublisher;
     final SecurityHandler securityHandler;
+    final Matcher matcher;
 
     public void handleEnterOrder(EnterOrderRq enterOrderRq) {
         try {
@@ -63,7 +64,13 @@ public class OrderHandler {
     public void handleAuctionOpening(ChangeMatchingStateRq changeMatchingStateRq) {
         var security = securityRepository.findSecurityByIsin(changeMatchingStateRq.getSecurityIsin());
         assert security.getMatchingState() == MatchingState.AUCTION;
-        MatchResult matchResult = securityHandler.executeAuction(security);
+        MatchResult matchResult = matcher.executeAuction(security);
+
+        security.updateLastTransactionPrice(matchResult);
+
+        var activatedOrders = security.tryActivateAll();
+        activatedOrders.forEach(matchResult::addActivatedOrder);
+        
         publishAuctionMessages(changeMatchingStateRq, matchResult, security);
     }
 

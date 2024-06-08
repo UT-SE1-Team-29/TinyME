@@ -9,7 +9,6 @@ import ir.ramtung.tinyme.messaging.exception.InvalidRequestException;
 import ir.ramtung.tinyme.messaging.request.DeleteOrderRq;
 import ir.ramtung.tinyme.messaging.request.EnterOrderRq;
 import ir.ramtung.tinyme.messaging.request.Extensions;
-import ir.ramtung.tinyme.messaging.request.MatchingState;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -64,17 +63,6 @@ public class SecurityHandler {
             case CONTINUOUS -> handleUpdatedOrderByContinuousStrategy(security, updateOrderRq, order);
             case AUCTION -> handleUpdatedOrderByAuctionStrategy(security, updateOrderRq, order);
         };
-    }
-
-    public MatchResult executeAuction(Security security) {
-        assert security.getMatchingState() == MatchingState.AUCTION;
-        var matchResult = matcher.executeAuction(security);
-
-        security.updateLastTransactionPrice(matchResult);
-
-        var activatedOrders = security.tryActivateAll();
-        activatedOrders.forEach(matchResult::addActivatedOrder);
-        return matchResult;
     }
 
     private boolean doesLosePriority(EnterOrderRq updateOrderRq, Order originalOrder) {

@@ -20,7 +20,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-@Builder
+@Builder(builderClassName = "MatchResultBuilder", toBuilder = true)
 public final class MatchResult {
     private final MatchingOutcome outcome;
     private final Order remainder;
@@ -144,6 +144,5 @@ public final class MatchResult {
                 trade.getBuy().getOrderId(),
                 trade.getSell().getOrderId())));
     }
-
 
 }
