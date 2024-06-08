@@ -70,7 +70,7 @@ public class SecurityHandler {
         assert security.getMatchingState() == MatchingState.AUCTION;
         var matchResult = matcher.executeAuction(security);
 
-        updateLastTransactionPrice(security, matchResult);
+        security.updateLastTransactionPrice(matchResult);
 
         var activatedOrders = security.tryActivateAll();
         activatedOrders.forEach(matchResult::addActivatedOrder);
@@ -121,13 +121,6 @@ public class SecurityHandler {
                 enterOrderRq.getQuantity(), enterOrderRq.getPrice(), broker, shareholder, enterOrderRq.getEntryTime());
     }
 
-    private void updateLastTransactionPrice(Security security, MatchResult result) {
-        assert result != null;
-        if (!result.trades().isEmpty()) {
-            security.setLastTransactionPrice(result.trades().getLast().getPrice());
-        }
-    }
-
     private MatchResult handleNewOrderByAuctionStrategy(Order order, Extensions extensions) {
         if (extensions.minimumExecutionQuantity() != 0) {
             return MatchResult.minimumQuantityConditionForAuctionMode();
@@ -144,7 +137,7 @@ public class SecurityHandler {
 
         var matchResult = matcher.executeWithMinimumQuantityCondition(order, extensions.minimumExecutionQuantity());
 
-        updateLastTransactionPrice(security, matchResult);
+        security.updateLastTransactionPrice(matchResult);
 
         activatedOrders.addAll(security.tryActivateAll());
         activatedOrders.forEach(matchResult::addActivatedOrder);
@@ -178,7 +171,7 @@ public class SecurityHandler {
                 originalOrder.getBroker().decreaseCreditBy(originalOrder.getValue());
             }
         }
-        updateLastTransactionPrice(security, matchResult);
+        security.updateLastTransactionPrice(matchResult);
         activatedOrders.addAll(security.tryActivateAll());
 
         activatedOrders.forEach(matchResult::addActivatedOrder);

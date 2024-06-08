@@ -1,12 +1,24 @@
 package ir.ramtung.tinyme.domain.entity;
 
 import ir.ramtung.tinyme.domain.entity.order.Order;
+import ir.ramtung.tinyme.messaging.EventPublisher;
+import ir.ramtung.tinyme.messaging.Message;
+import ir.ramtung.tinyme.messaging.TradeDTO;
+import ir.ramtung.tinyme.messaging.event.Event;
+import ir.ramtung.tinyme.messaging.event.OrderAcceptedEvent;
+import ir.ramtung.tinyme.messaging.event.OrderActivatedEvent;
+import ir.ramtung.tinyme.messaging.event.OrderExecutedEvent;
+import ir.ramtung.tinyme.messaging.event.OrderRejectedEvent;
+import ir.ramtung.tinyme.messaging.event.OrderUpdatedEvent;
+import ir.ramtung.tinyme.messaging.event.TradeEvent;
+import ir.ramtung.tinyme.messaging.request.EnterOrderRq;
 import lombok.Builder;
 import lombok.Singular;
 
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 @Builder
 public final class MatchResult {
@@ -88,6 +100,49 @@ public final class MatchResult {
         return "MatchResult[" +
                 "remainder=" + remainder + ", " +
                 "trades=" + trades + ']';
+    }
+
+    public void publishOutcome(EventPublisher eventPublisher, EnterOrderRq enterOrderRq) {
+        Event event = switch(outcome) {
+            case NOT_ENOUGH_CREDIT -> new OrderRejectedEvent(enterOrderRq.getRequestId(), enterOrderRq.getOrderId(), List.of(Message.BUYER_HAS_NOT_ENOUGH_CREDIT));
+            case NOT_ENOUGH_POSITIONS -> new OrderRejectedEvent(enterOrderRq.getRequestId(), enterOrderRq.getOrderId(), List.of(Message.SELLER_HAS_NOT_ENOUGH_POSITIONS));
+            case MINIMUM_QUANTITY_CONDITION_FAILED -> new OrderRejectedEvent(enterOrderRq.getRequestId(), enterOrderRq.getOrderId(), List.of(Message.MINIMUM_EXECUTION_QUANTITY_FAILED));
+            case MINIMUM_QUANTITY_CONDITION_FOR_AUCTION_MODE -> new OrderRejectedEvent(enterOrderRq.getRequestId(), enterOrderRq.getOrderId(), List.of(Message.INVALID_MINIMUM_EXECUTION_QUANTITY_FOR_AUCTION_MODE));
+            default -> switch(enterOrderRq.getRequestType()) {
+                case NEW_ORDER -> new OrderAcceptedEvent(enterOrderRq.getRequestId(), enterOrderRq.getOrderId());
+                case UPDATE_ORDER -> new OrderUpdatedEvent(enterOrderRq.getRequestId(), enterOrderRq.getOrderId());
+            };
+        };
+        eventPublisher.publish(event);
+    }
+
+    public void publishActivatedOrderEvents(EventPublisher eventPublisher, long requestId) {
+        activatedOrders.forEach(activatedOrder ->
+                eventPublisher.publish(new OrderActivatedEvent(activatedOrder.getOrderId(), requestId))
+        );
+    }
+
+    public void publishExecutionEventIfAny(EventPublisher eventPublisher, EnterOrderRq enterOrderRq) {
+        if (!trades.isEmpty()) {
+            eventPublisher.publish(new OrderExecutedEvent(enterOrderRq.getRequestId(), enterOrderRq.getOrderId(), trades().stream().map(TradeDTO::new).collect(Collectors.toList())));
+        }
+    }
+
+    public void publishAuctionExecutionOutcome(EventPublisher eventPublisher) {
+        if (trades().isEmpty()) {
+            eventPublisher.publish(new OrderRejectedEvent());
+        } else {
+            eventPublisher.publish(new OrderExecutedEvent());
+        }
+    }
+
+    public void publishAuctionTrades(EventPublisher eventPublisher) {
+        trades().forEach(trade -> eventPublisher.publish(new TradeEvent(
+                trade.security.getIsin(),
+                trade.getPrice(),
+                trade.getQuantity(),
+                trade.getBuy().getOrderId(),
+                trade.getSell().getOrderId())));
     }
 
 
