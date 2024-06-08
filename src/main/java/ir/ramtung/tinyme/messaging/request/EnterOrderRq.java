@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
 
 @Value
 @Builder
-public class EnterOrderRq {
+public class EnterOrderRq implements OrderManipulationRequest {
     OrderEntryType requestType;
     long requestId;
     String securityIsin;

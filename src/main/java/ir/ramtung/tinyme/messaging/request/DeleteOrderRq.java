@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
 @Value
 @Builder
 @AllArgsConstructor(onConstructor = @__({@Deprecated}))
-public class DeleteOrderRq {
+public class DeleteOrderRq implements OrderManipulationRequest {
     long requestId;
     String securityIsin;
     Side side;

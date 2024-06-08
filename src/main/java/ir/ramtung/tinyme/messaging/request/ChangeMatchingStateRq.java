@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
 @Value
 @Builder
 @AllArgsConstructor(onConstructor = @__({@Deprecated}))
-public class ChangeMatchingStateRq {
+public class ChangeMatchingStateRq implements Request {
     long requestId;
     @JsonSerialize(using = LocalDateTimeSerializer.class)
     @JsonDeserialize(using = LocalDateTimeDeserializer.class)
