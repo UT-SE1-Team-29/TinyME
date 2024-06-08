@@ -86,4 +86,11 @@ public class IcebergOrder extends Order {
         }
         this.peakSize = peakSize;
     }
+
+    public void handleQuantityDecrease(int quantity) {
+        decreaseQuantity(quantity);
+        replenish();
+        if (getQuantity() > 0)
+            getSecurity().getOrderBook().enqueue(this);
+    }
 }

@@ -67,33 +67,46 @@ public class Matcher {
             if (matchingOrder == null)
                 break;
 
-            Trade trade = new Trade(newOrder.getSecurity(), matchingOrder.getPrice(), Math.min(newOrder.getQuantity(), matchingOrder.getQuantity()), newOrder, matchingOrder);
-            if (newOrder.getSide() == Side.BUY) {
-                if (trade.buyerHasEnoughCredit())
-                    trade.decreaseBuyersCredit();
-                else {
-                    rollbackTrades(newOrder, trades);
-                    return MatchResult.notEnoughCredit();
-                }
-            }
-            trade.increaseSellersCredit();
-            trades.add(trade);
-
-            if (newOrder.getQuantity() >= matchingOrder.getQuantity()) {
-                newOrder.decreaseQuantity(matchingOrder.getQuantity());
-                orderBook.removeFirst(matchingOrder.getSide());
-                if (matchingOrder instanceof IcebergOrder icebergOrder) {
-                    icebergOrder.decreaseQuantity(matchingOrder.getQuantity());
-                    icebergOrder.replenish();
-                    if (icebergOrder.getQuantity() > 0)
-                        orderBook.enqueue(icebergOrder);
-                }
+            var trade = makeTrade(newOrder, matchingOrder);
+            if (trade != null) {
+                trades.add(trade);
             } else {
-                matchingOrder.decreaseQuantity(newOrder.getQuantity());
-                newOrder.makeQuantityZero();
+                rollbackTrades(newOrder, trades);
+                return MatchResult.notEnoughCredit();
             }
+            updateQuantities(newOrder, matchingOrder);
         }
         return MatchResult.executed(newOrder, trades);
+    }
+
+    /**
+     * @return null if no trade was made
+     */
+    private Trade makeTrade(Order newOrder, Order matchingOrder) {
+        Trade trade = new Trade(newOrder.getSecurity(), matchingOrder.getPrice(), Math.min(newOrder.getQuantity(), matchingOrder.getQuantity()), newOrder, matchingOrder);
+        if (newOrder.getSide() == Side.BUY) {
+            if (trade.buyerHasEnoughCredit())
+                trade.decreaseBuyersCredit();
+            else {
+                return null;
+            }
+        }
+        trade.increaseSellersCredit();
+        return trade;
+    }
+
+    private void updateQuantities(Order newOrder, Order matchingOrder) {
+        var orderBook = newOrder.getSecurity().getOrderBook();
+        if (newOrder.getQuantity() >= matchingOrder.getQuantity()) {
+            newOrder.decreaseQuantity(matchingOrder.getQuantity());
+            orderBook.removeFirst(matchingOrder.getSide());
+            if (matchingOrder instanceof IcebergOrder icebergOrder) {
+                icebergOrder.handleQuantityDecrease(matchingOrder.getQuantity());
+            }
+        } else {
+            matchingOrder.decreaseQuantity(newOrder.getQuantity());
+            newOrder.makeQuantityZero();
+        }
     }
 
     public MatchResult execute(Order order) {
@@ -115,13 +128,17 @@ public class Matcher {
             }
             order.getSecurity().getOrderBook().enqueue(result.remainder());
         }
+        updatePositions(result);
+        return result;
+    }
+
+    private void updatePositions(MatchResult result) {
         if (!result.trades().isEmpty()) {
             for (Trade trade : result.trades()) {
                 trade.getBuy().getShareholder().incPosition(trade.getSecurity(), trade.getQuantity());
                 trade.getSell().getShareholder().decPosition(trade.getSecurity(), trade.getQuantity());
             }
         }
-        return result;
     }
 
     public MatchResult executeWithMinimumQuantityCondition(Order order, int minimumExecutionQuantity) {
