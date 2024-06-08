@@ -20,11 +20,11 @@ public class SecurityConfigurationHandler {
     public void handleMatchingStateRq(ChangeMatchingStateRq changeMatchingStateRq) {
         var security = this.securityRepository.findSecurityByIsin(changeMatchingStateRq.getSecurityIsin());
         var targetMatchingState = changeMatchingStateRq.getTargetState();
+        changeSecurityState(security, changeMatchingStateRq);
         eventPublisher.publish(new SecurityStateChangedEvent(
                 security.getIsin(),
                 targetMatchingState
         ));
-        changeSecurityState(security, changeMatchingStateRq);
     }
 
     private void changeSecurityState(Security security, ChangeMatchingStateRq changeMatchingStateRq) {
