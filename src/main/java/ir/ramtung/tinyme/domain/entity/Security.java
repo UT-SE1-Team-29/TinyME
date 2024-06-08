@@ -2,6 +2,8 @@ package ir.ramtung.tinyme.domain.entity;
 
 import ir.ramtung.tinyme.domain.entity.order.Order;
 import ir.ramtung.tinyme.domain.entity.order.StopOrder;
+import ir.ramtung.tinyme.messaging.EventPublisher;
+import ir.ramtung.tinyme.messaging.event.OpeningPriceEvent;
 import ir.ramtung.tinyme.messaging.request.MatchingState;
 import lombok.Builder;
 import lombok.Getter;
@@ -72,5 +74,19 @@ public class Security {
             return true;
         }
         return false;
+    }
+
+    public void updateLastTransactionPrice(MatchResult result) {
+        assert result != null;
+        if (!result.trades().isEmpty()) {
+            setLastTransactionPrice(result.trades().getLast().getPrice());
+        }
+    }
+
+    public void publishOpeningPriceEvent(EventPublisher eventPublisher) {
+        if (getMatchingState() == MatchingState.AUCTION) {
+            var openingState = openingState();
+            eventPublisher.publish(new OpeningPriceEvent(isin, openingState.price(), openingState.tradableQuantity()));
+        }
     }
 }
