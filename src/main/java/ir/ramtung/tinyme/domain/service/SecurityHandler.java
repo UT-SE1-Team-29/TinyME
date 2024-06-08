@@ -28,7 +28,7 @@ public class SecurityHandler {
                         orderBook.totalSellQuantityByShareholder(shareholder) + enterOrderRq.getQuantity())) {
             return MatchResult.notEnoughPositions();
         }
-        Order order = getOrder(enterOrderRq, security, broker, shareholder);
+        Order order = buildOrder(enterOrderRq, security, broker, shareholder);
         var extensions = enterOrderRq.getExtensions();
 
         return switch (security.getMatchingState()) {
@@ -94,20 +94,20 @@ public class SecurityHandler {
                         orderBook.totalSellQuantityByShareholder(order.getShareholder()) - order.getQuantity() + updateOrderRq.getQuantity());
     }
 
-    private void validateUpdateOrderRequest(Extensions extensions, Order order) throws InvalidRequestException {
+    private void validateUpdateOrderRequest(Extensions newExtensions, Order order) throws InvalidRequestException {
         if (order == null)
             throw new InvalidRequestException(Message.ORDER_ID_NOT_FOUND);
-        if ((order instanceof IcebergOrder) && extensions.peakSize() == 0)
+        if ((order instanceof IcebergOrder) && newExtensions.peakSize() == 0)
             throw new InvalidRequestException(Message.INVALID_PEAK_SIZE);
-        if (!(order instanceof IcebergOrder) && extensions.peakSize() != 0)
+        if (!(order instanceof IcebergOrder) && newExtensions.peakSize() != 0)
             throw new InvalidRequestException(Message.CANNOT_SPECIFY_PEAK_SIZE_FOR_A_NON_ICEBERG_ORDER);
-        if ((order instanceof StopOrder) && order.isActive() && extensions.stopPrice() != 0)
+        if ((order instanceof StopOrder) && order.isActive() && newExtensions.stopPrice() != 0)
             throw new InvalidRequestException(Message.INVALID_STOP_PRICE);
-        if (!(order instanceof StopOrder) && extensions.stopPrice() != 0)
+        if (!(order instanceof StopOrder) && newExtensions.stopPrice() != 0)
             throw new InvalidRequestException(Message.CANNOT_SPECIFY_STOP_PRICE_FOR_A_NON_STOP_ORDER);
     }
 
-    private Order getOrder(EnterOrderRq enterOrderRq, Security security, Broker broker, Shareholder shareholder) {
+    private Order buildOrder(EnterOrderRq enterOrderRq, Security security, Broker broker, Shareholder shareholder) {
         var extensions = enterOrderRq.getExtensions();
         if (extensions.peakSize() > 0)
             return new IcebergOrder(enterOrderRq.getOrderId(), security, enterOrderRq.getSide(),
