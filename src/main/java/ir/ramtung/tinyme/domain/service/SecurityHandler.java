@@ -14,7 +14,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.List;
 
 @Service
@@ -52,7 +51,7 @@ public class SecurityHandler {
         var orderBook = security.getOrderBook();
         Order order = orderBook.findByOrderId(updateOrderRq.getSide(), updateOrderRq.getOrderId());
 
-        validateUpdateOrderRequest(updateOrderRq, order);
+        validateUpdateOrderRequest(updateOrderRq.getExtensions(), order);
         if (doesNotHaveEnoughPositions(security, updateOrderRq, order)) {
             return MatchResult.notEnoughPositions();
         }
@@ -73,7 +72,7 @@ public class SecurityHandler {
 
         updateLastTransactionPrice(security, matchResult);
 
-        var activatedOrders = tryActivateQueuedStopOrdersThenReturnTheActivated(security);
+        var activatedOrders = security.tryActivateAll();
         activatedOrders.forEach(matchResult::addActivatedOrder);
         return matchResult;
     }
@@ -95,16 +94,16 @@ public class SecurityHandler {
                         orderBook.totalSellQuantityByShareholder(order.getShareholder()) - order.getQuantity() + updateOrderRq.getQuantity());
     }
 
-    private void validateUpdateOrderRequest(EnterOrderRq updateOrderRq, Order order) throws InvalidRequestException {
+    private void validateUpdateOrderRequest(Extensions extensions, Order order) throws InvalidRequestException {
         if (order == null)
             throw new InvalidRequestException(Message.ORDER_ID_NOT_FOUND);
-        if ((order instanceof IcebergOrder) && updateOrderRq.getExtensions().peakSize() == 0)
+        if ((order instanceof IcebergOrder) && extensions.peakSize() == 0)
             throw new InvalidRequestException(Message.INVALID_PEAK_SIZE);
-        if (!(order instanceof IcebergOrder) && updateOrderRq.getExtensions().peakSize() != 0)
+        if (!(order instanceof IcebergOrder) && extensions.peakSize() != 0)
             throw new InvalidRequestException(Message.CANNOT_SPECIFY_PEAK_SIZE_FOR_A_NON_ICEBERG_ORDER);
-        if ((order instanceof StopOrder) && order.isActive() && updateOrderRq.getExtensions().stopPrice() != 0)
+        if ((order instanceof StopOrder) && order.isActive() && extensions.stopPrice() != 0)
             throw new InvalidRequestException(Message.INVALID_STOP_PRICE);
-        if (!(order instanceof StopOrder) && updateOrderRq.getExtensions().stopPrice() != 0)
+        if (!(order instanceof StopOrder) && extensions.stopPrice() != 0)
             throw new InvalidRequestException(Message.CANNOT_SPECIFY_STOP_PRICE_FOR_A_NON_STOP_ORDER);
     }
 
@@ -129,37 +128,6 @@ public class SecurityHandler {
         }
     }
 
-    /**
-     * @return true if activation happens and false otherwise
-     */
-    public boolean tryActivateStopOrder(Security security, StopOrder order) {
-        var orderBook = security.getOrderBook();
-        var lastTransactionPrice = orderBook.getLastTransactionPrice();
-
-        if (lastTransactionPrice == null) return false;
-        if (order.isActive()) return false;
-
-        var condition = (order.getSide() == Side.BUY && order.getStopPrice() <= lastTransactionPrice)
-                || (order.getSide() == Side.SELL && order.getStopPrice() >= lastTransactionPrice);
-        if (condition) {
-            order.activate();
-            return true;
-        }
-        return false;
-    }
-
-    private List<Order> tryActivateQueuedStopOrdersThenReturnTheActivated(Security security) {
-        var orderBook = security.getOrderBook();
-        List<Order> activatedOrders = new LinkedList<>();
-        for (Order order : orderBook.getBuyQueue()) {
-            if (order instanceof StopOrder stopOrder
-                    && tryActivateStopOrder(security, stopOrder)) {
-                activatedOrders.add(stopOrder);
-            }
-        }
-        return activatedOrders;
-    }
-
     private MatchResult handleNewOrderByAuctionStrategy(Order order, Extensions extensions) {
         if (extensions.minimumExecutionQuantity() != 0) {
             return MatchResult.minimumQuantityConditionForAuctionMode();
@@ -170,7 +138,7 @@ public class SecurityHandler {
     private MatchResult handleNewOrderByContinuousStrategy(Order order, Extensions extensions) {
         var security = order.getSecurity();
         List<Order> activatedOrders = new ArrayList<>();
-        if (order instanceof StopOrder stopOrder && tryActivateStopOrder(security, stopOrder)) {
+        if (order instanceof StopOrder stopOrder && security.tryActivate(stopOrder)) {
             activatedOrders.add(stopOrder);
         }
 
@@ -178,7 +146,7 @@ public class SecurityHandler {
 
         updateLastTransactionPrice(security, matchResult);
 
-        activatedOrders.addAll(tryActivateQueuedStopOrdersThenReturnTheActivated(security));
+        activatedOrders.addAll(security.tryActivateAll());
         activatedOrders.forEach(matchResult::addActivatedOrder);
         return matchResult;
     }
@@ -199,7 +167,7 @@ public class SecurityHandler {
         orderBook.removeByOrderId(updateOrderRq.getSide(), updateOrderRq.getOrderId());
 
         List<Order> activatedOrders = new ArrayList<>();
-        if (order instanceof StopOrder stopOrder && tryActivateStopOrder(security, stopOrder)) {
+        if (order instanceof StopOrder stopOrder && security.tryActivate(stopOrder)) {
             activatedOrders.add(stopOrder);
         }
 
@@ -211,7 +179,7 @@ public class SecurityHandler {
             }
         }
         updateLastTransactionPrice(security, matchResult);
-        activatedOrders.addAll(tryActivateQueuedStopOrdersThenReturnTheActivated(security));
+        activatedOrders.addAll(security.tryActivateAll());
 
         activatedOrders.forEach(matchResult::addActivatedOrder);
 
